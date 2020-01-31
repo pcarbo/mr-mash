@@ -1,30 +1,42 @@
-# Bayesian multivariate regression with Normal prior. The outputs are:
-# b, the least-squares estimate of the regression coefficients; S, the
-# covariance of b; mu1, the posterior mean of the regression
+# Compute quantities for a basic Bayesian multivariate regression with
+# a multivariate normal prior on the regression coefficients: Y = xb'
+# + E, E ~ MN(0,I,V),b ~ N(0,S0). The outputs are: bhat, the
+# least-squares estimate of the regression coefficients; S, the
+# covariance of bhat; mu1, the posterior mean of the regression
 # coefficients; S1, the posterior covariance of the regression
-# coefficients; logbf, the log-Bayes factor.
+# coefficients; and logbf, the logarithm of the Bayes factor.
+#
+# The special case of univariate regression is also handled.
+#
 bayes_mvr_ridge <- function (x, Y, V, S0) {
-  
-  # Compute the least-squares estimate of the coefficients (b) and their
-  # covariance (S).
+
+  # Make sure that Y, V and S0 are matrices.
+  Y  <- as.matrix(Y)
+  V  <- as.matrix(V)
+  S0 <- as.matrix(S0)
+    
+  # Compute the least-squares estimate of the coefficients (bhat) and
+  # the covariance of the standard error (S).
   xx   <- norm2(x)^2
   bhat <- drop(x %*% Y)/xx
   S    <- V/xx
   
+  # Compute the posterior mean (mu1) and covariance (S1) assuming a
+  # multivariate normal prior with zero mean and covariance S0.
+  I   <- diag(ncol(Y))
+  S1  <- S0 %*% solve(I + solve(S) %*% S0)
+  mu1 <- drop(S1 %*% solve(S,bhat))
+
   # Compute the log-Bayes factor.
-  logbf <- (as.numeric(determinant(S)$modulus) +
-              - as.numeric(determinant(S0 + S)$modulus)
-            + dot(bhat,solve(S,bhat)) - dot(bhat,solve(S0 + S,bhat)))/2
+  z     <- solve(S,bhat)
+  logbf <- (logdet(S) - logdet(S0 + S) + dot(z,S1 %*% z))/2
   
-  # Compute the posterior mean and covariance assuming a multivariate
-  # normal prior with zero mean and covariance S0.
-  SplusS0_chol <- chol(S+S0)
-  S1 <- S0%*%backsolve(SplusS0_chol, forwardsolve(t(SplusS0_chol), S))
-  S_chol <- chol(S)
-  mu1    <- drop(S1%*%backsolve(S_chol, forwardsolve(t(S_chol), b)))
-  
-  # Return the least-squares estimate and covariance (b, S), the
-  # posterior mean and covariance (mu1, S1), and the log-Bayes factor
-  # (logbf)
-  return(list(b = b,S = S,mu1 = mu1,S1 = S1,logbf = logbf))
+  # Return the least-squares estimate (bhat) and its covariance (S), the
+  # posterior mean (mu1) and covariance (S1), and the log-Bayes factor
+  # (logbf).
+  return(list(bhat  = bhat,
+              S     = drop(S),
+              mu1   = mu1,
+              S1    = drop(S1),
+              logbf = logbf))
 }
