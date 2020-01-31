@@ -76,14 +76,14 @@ bayes_mvr_mix <- function (x, Y, V, w0, S0) {
   # regression coefficients.
   S1  <- matrix(0,r,r)
   mu1 <- rep(0,r)
-  # for (k in 1:K) {
-  #   wk  <- w1[k]
-  #   muk <- out[[k]]$mu1
-  #   Sk  <- out[[k]]$S1
-  #   mu1 <- mu1 + wk*muk
-  #   A   <- A   + wk*(Sk + tcrossprod(muk))
-  # }
-  # S1 <- A - tcrossprod(mu1)
+  for (i in 1:k) {
+    wi  <- w1[i]
+    mui <- out[[i]]$mu1
+    Si  <- out[[i]]$S1
+    mu1 <- mu1 + wi*mui
+    S1  <- S1 + wi*(Si + tcrossprod(mui))
+  }
+  S1 <- S1 - tcrossprod(mu1)
   
   # Return the the posterior mean (mu1) and covariance (S1), the
   # posterior assignment probabilities (w1), and the log-Bayes factor
