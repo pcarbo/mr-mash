@@ -1,5 +1,5 @@
 # TO DO: Explain here what this script does, and how to use it.
-library(MBSP)
+suppressMessages(library(MBSP))
 library(mvtnorm)
 source("../code/misc.R")
 source("../code/mr_mash.R")
@@ -34,6 +34,7 @@ S0 <- list(k1 = rbind(c(3,0),
 # The mixture weights in the mixture-of-normals prior on the
 # regression coefficients.
 w0 <- c(0.1,0.6,0.2,0.1)
+k  <- length(w0)
 
 # SIMULATE DATA
 # -------------
@@ -49,10 +50,23 @@ Y <- scale(Y,scale = FALSE)
 
 # FIT MR-MASH MODEL
 # -----------------
-B0 <- matrix(0,n,r)
+B0 <- matrix(0,p,r)
 B1 <- mr_mash_update(X,Y,B,V,w0,S0)
 
-# Test univariate computations.
+# Test univeriate computations:
+s0      <- lapply(S0,"[",1)
+s0[[1]] <- 1e-10
+b1      <- mr_mash_update(X,Y[,1],B0[,1],V[1],w0,s0)
+
+s0    <- unlist(s0)
+s0[1] <- 0
+out   <- varbvsmix(X,NULL,Y[,1],V[1]*s0,V[1],w0,matrix(0,p,k),matrix(0,p,k),
+                   update.sigma = FALSE,update.sa = FALSE, update.w = FALSE,
+                   maxiter = 1,drop.threshold = 0,verbose = FALSE)
+b2    <- rowSums(out$alpha * out$mu)
+print(range(b1 - b2))
+
+# Test univariate computations:
 # out <- bayes_mvr_mix(X[,3],Y[,1],V[1],w0,lapply(S0,"[",1))
 
 # Test computation of quantities for basic multivariate regression model.

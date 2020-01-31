@@ -129,6 +129,9 @@ mr_mash <- function (Y, X, V, S0, w0, B, numiter = 100) {
 #
 mr_mash_update <- function (X, Y, B, V, w0, S0) {
 
+  # Make sure B is a matrix.
+  B <- as.matrix(B)
+    
   # Get the number of predictors.
   p <- ncol(X)
 
@@ -137,7 +140,7 @@ mr_mash_update <- function (X, Y, B, V, w0, S0) {
 
   # Repeat for each predictor.
   for (i in 1:p) {
-
+    
     # Disregard the ith predictor in the expected residuals.
     R <- R + outer(X[,i],B[i,])
 
@@ -151,5 +154,5 @@ mr_mash_update <- function (X, Y, B, V, w0, S0) {
   }
 
   # Output the updated predictors.
-  return(B)
+  return(drop(B))
 }
