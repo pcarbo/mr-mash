@@ -53,7 +53,7 @@ Y <- scale(Y,scale = FALSE)
 B0 <- matrix(0,p,r)
 B1 <- mr_mash_update(X,Y,B,V,w0,S0)
 
-# Test univeriate computations:
+# Test univariate computations:
 s0      <- lapply(S0,"[",1)
 s0[[1]] <- 1e-10
 b1      <- mr_mash_update(X,Y[,1],B0[,1],V[1],w0,s0)

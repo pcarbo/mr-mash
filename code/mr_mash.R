@@ -1,12 +1,13 @@
 # Compute quantities for a basic Bayesian multivariate regression with
 # a multivariate normal prior on the regression coefficients: Y = xb'
-# + E, E ~ MN(0,I,V),b ~ N(0,S0). The outputs are: bhat, the
+# + E, E ~ MN(0,I,V), b ~ N(0,S0). The outputs are: bhat, the
 # least-squares estimate of the regression coefficients; S, the
 # covariance of bhat; mu1, the posterior mean of the regression
 # coefficients; S1, the posterior covariance of the regression
 # coefficients; and logbf, the logarithm of the Bayes factor.
 #
-# The special case of univariate regression is also handled.
+# The special case of univariate regression, when Y is a vector or a
+# matrix with 1 column, is also handled.
 #
 bayes_mvr_ridge <- function (x, Y, V, S0) {
 
@@ -48,7 +49,8 @@ bayes_mvr_ridge <- function (x, Y, V, S0) {
 # coefficients; w1, the posterior "weights" for the individual
 # components; and logbf, the logarithm of the Bayes factor.
 #
-# The special case of univariate regression is also handled.
+# The special case of univariate regression, when Y is a vector or a
+# matrix with 1 column, is also handled.
 #
 bayes_mvr_mix <- function (x, Y, V, w0, S0) {
     
@@ -122,10 +124,11 @@ mr_mash <- function (Y, X, V, S0, w0, B, numiter = 100) {
   return()
 }
 
-# TO DO: Explain here what this function does, and how to use it.
+# Perform a single pass of the co-ordinate ascent updates for the
+# mr-mash model.
 #
-# TO DO: Check that this also works for the univariate case, when
-# ncol(Y) = 1.
+# The special case of univariate regression, when Y is a vector or a
+# matrix with 1 column, is also handled.
 #
 mr_mash_update <- function (X, Y, B, V, w0, S0) {
 
