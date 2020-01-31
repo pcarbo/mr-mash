@@ -50,21 +50,20 @@ Y <- scale(Y,scale = FALSE)
 
 # FIT MR-MASH MODEL
 # -----------------
-B0 <- matrix(0,p,r)
-B1 <- mr_mash_update(X,Y,B,V,w0,S0)
+fit <- mr_mash(Y,X,V,S0,w0,B0,20)
 
 # Test univariate computations:
 s0      <- lapply(S0,"[",1)
 s0[[1]] <- 1e-10
-b1      <- mr_mash_update(X,Y[,1],B0[,1],V[1],w0,s0)
+b1      <- mr_mash(Y[,1],X,V[1],s0,w0,B0[,1],20)$B
 
 s0    <- unlist(s0)
 s0[1] <- 0
 out   <- varbvsmix(X,NULL,Y[,1],V[1]*s0,V[1],w0,matrix(0,p,k),matrix(0,p,k),
                    update.sigma = FALSE,update.sa = FALSE, update.w = FALSE,
-                   maxiter = 1,drop.threshold = 0,verbose = FALSE)
+                   maxiter = 20,tol = 0,drop.threshold = 0,verbose = FALSE)
 b2    <- rowSums(out$alpha * out$mu)
-print(range(b1 - b2))
+print(range(b1 - b2)) # Should be close to zero.
 
 # Test univariate computations:
 # out <- bayes_mvr_mix(X[,3],Y[,1],V[1],w0,lapply(S0,"[",1))

@@ -100,28 +100,33 @@ bayes_mvr_mix <- function (x, Y, V, w0, S0) {
               logbf = logbf))
 }
 
-# TO DO: Add comments here describing what this function does, and how
-# to use it.
+# Run several iterations of the co-ordinate ascent updates for the
+# mr-mash model.
+#
+# The special case of univariate regression, when Y is a vector or a
+# matrix with 1 column, is also handled.
+#
 mr_mash <- function (Y, X, V, S0, w0, B, numiter = 100) {
   
   # This variable is used to keep track of the algorithm's progress.
-  maxdiff <- rep(0,numiter)
+  maxd <- rep(0,numiter)
 
   # Iterate the updates.
-  for (iter in 1:numiter) {
+  for (i in 1:numiter) {
 
     # Save the current estimates of the posterior means.
     B0 <- B
       
-    ##Compute expected residuals
-    rbar <- Y - X%*%mu1_t
+    # Update the posterior means of the regression coefficients.
+    B <- mr_mash_update(X,Y,B,V,w0,S0)
     
-    
-    ##Compute distance in mu1 between two successive iterations
-    err <- abs(mu1_t - mu1_tminus1)
+    # Store the largest change in the posterior means.
+    maxd[i] <- abs(max(B - B0))
   }
-  
-  return()
+
+  # Return the updated posterior means of the regression coefficicents
+  # (B) and the maximum change at each iteration (maxd).
+  return(list(B = B,maxd = maxd))
 }
 
 # Perform a single pass of the co-ordinate ascent updates for the
@@ -143,17 +148,20 @@ mr_mash_update <- function (X, Y, B, V, w0, S0) {
 
   # Repeat for each predictor.
   for (i in 1:p) {
+    x <- X[,i]
+    b <- B[i,]
     
     # Disregard the ith predictor in the expected residuals.
-    R <- R + outer(X[,i],B[i,])
+    R <- R + outer(x,b)
 
     # Update the posterior of the regression coefficients for the ith
     # predictor.
-    out   <- bayes_mvr_mix(X[,i],R,V,w0,S0)
-    B[i,] <- out$mu1
+    out   <- bayes_mvr_mix(x,R,V,w0,S0)
+    b     <- out$mu1
+    B[i,] <- b
     
     # Update the expected residuals.
-    R <- R - outer(X[,i],B[i,])
+    R <- R - outer(x,b)
   }
 
   # Output the updated predictors.
