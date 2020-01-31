@@ -41,14 +41,15 @@ bayes_mvr_ridge <- function (x, Y, V, S0) {
               logbf = logbf))
 }
 
-# Bayesian multivariate regression with mixture-of-normals prior
-# (mixture weights w0 and covariance matrices S0) 
+# Compute quantities for Bayesian multivariate regression with a
+# mixture-of-multivariate-normals prior on the regression
+# coefficients. mu1, the posterior mean of the regression
+# coefficients; S1, the posterior covariance of the regression
+# coefficients; w1, the posterior "weights" for the individual
+# components; and logbf, the logarithm of the Bayes factor.
 #
-# The outputs are: the log-Bayes factor (logbf), the posterior
-# assignment probabilities (w1), the posterior mean of the
-# coefficients given that all the coefficients are not nonzero (mu1),
-# and the posterior covariance of the coefficients given that all the
-# coefficients are not zero (S1).
+# The special case of univariate regression is also handled.
+#
 bayes_mvr_mix <- function (x, Y, V, w0, S0) {
     
   # Make sure Y is a matrix.
