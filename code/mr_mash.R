@@ -97,3 +97,59 @@ bayes_mvr_mix <- function (x, Y, V, w0, S0) {
               w1    = w1,
               logbf = logbf))
 }
+
+# TO DO: Add comments here describing what this function does, and how
+# to use it.
+mr_mash <- function (Y, X, V, S0, w0, B, numiter = 100) {
+  
+  # This variable is used to keep track of the algorithm's progress.
+  maxdiff <- rep(0,numiter)
+
+  # Iterate the updates.
+  for (iter in 1:numiter) {
+
+    # Save the current estimates of the posterior means.
+    B0 <- B
+      
+    ##Compute expected residuals
+    rbar <- Y - X%*%mu1_t
+    
+    
+    ##Compute distance in mu1 between two successive iterations
+    err <- abs(mu1_t - mu1_tminus1)
+  }
+  
+  return()
+}
+
+# TO DO: Explain here what this function does, and how to use it.
+#
+# TO DO: Check that this also works for the univariate case, when
+# ncol(Y) = 1.
+#
+mr_mash_update <- function (X, Y, B, V, w0, S0) {
+
+  # Get the number of predictors.
+  p <- ncol(X)
+
+  # Compute the expected residuals.
+  R <- Y - X %*% B
+
+  # Repeat for each predictor.
+  for (i in 1:p) {
+
+    # Disregard the ith predictor in the expected residuals.
+    R <- R + outer(X[,i],B[i,])
+
+    # Update the posterior of the regression coefficients for the ith
+    # predictor.
+    out   <- bayes_mvr_mix(X[,i],R,V,w0,S0)
+    B[i,] <- out$mu1
+    
+    # Update the expected residuals.
+    R <- R - outer(X[,i],B[i,])
+  }
+
+  # Output the updated predictors.
+  return(B)
+}

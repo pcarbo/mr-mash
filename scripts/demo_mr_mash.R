@@ -8,17 +8,17 @@ source("../code/mr_mash.R")
 # -----------------
 n <- 500
 p <- 20
-R <- 2
+r <- 2
 
 # The residual covariance matrix.
 V <- rbind(c(1.0,0.2),
            c(0.2,0.4))
-R <- nrow(V)
+r <- nrow(V)
 
 # The true effects used to simulate the data.
 B <- rbind(c(-2.0, -1.5),
            c( 1.0,  1.0),
-           matrix(0,p - 2,R))
+           matrix(0,p - 2,r))
 
 # The covariances in the mixture-of-normals prior on the regression
 # coefficients.
@@ -45,20 +45,18 @@ X <- scale(X,scale = FALSE)
 # package appears to be much faster than rmatrixnorm from the
 # MixMatrix package.
 Y <- matrix.normal(X %*% B,diag(n),V)
+Y <- scale(Y,scale = FALSE)
 
 # FIT MR-MASH MODEL
 # -----------------
-# TO DO.
+B0 <- matrix(0,n,r)
+B1 <- mr_mash_update(X,Y,B,V,w0,S0)
 
 # Test univariate computations.
-out <- bayes_mvr_mix(X[,3],Y[,1],V[1],w0,lapply(S0,"[",1))
+# out <- bayes_mvr_mix(X[,3],Y[,1],V[1],w0,lapply(S0,"[",1))
 
 # Test computation of quantities for basic multivariate regression model.
-out1 <- bayes_mvr_mix(X[,3],Y,V,w0,S0)
-source("~/git/mr.mash.alpha/R/bayes_reg_mv.R")
-out2 <- bayes_mvr_mix(X[,3],Y,V,w0,S0)
-print(max(abs(out1$w1  - out2$w1)))
-print(max(abs(out1$mu1 - out2$mu1)))
-print(max(abs(out1$S1  - out2$S1)))
-print(out1$logbf - out2$logbf)
+# out1 <- bayes_mvr_mix(X[,3],Y,V,w0,S0)
+# source("~/git/mr.mash.alpha/R/bayes_reg_mv.R")
+# out2 <- bayes_mvr_mix(X[,3],Y,V,w0,S0)
 
