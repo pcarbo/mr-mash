@@ -40,3 +40,56 @@ bayes_mvr_ridge <- function (x, Y, V, S0) {
               S1    = drop(S1),
               logbf = logbf))
 }
+
+# Bayesian multivariate regression with mixture-of-normals prior
+# (mixture weights w0 and covariance matrices S0) 
+#
+# The outputs are: the log-Bayes factor (logbf), the posterior
+# assignment probabilities (w1), the posterior mean of the
+# coefficients given that all the coefficients are not nonzero (mu1),
+# and the posterior covariance of the coefficients given that all the
+# coefficients are not zero (S1).
+bayes_mvr_mix <- function (x, Y, V, w0, S0) {
+  
+  # Get the dimension of the response (r) and the number of mixture
+  # components (k).
+  r <- ncol(Y)
+  k <- length(w0)
+  
+  # Compute the quantities separately for each mixture component.
+  out <- vector("list",k)
+  for (i in 1:k)
+    out[[i]] <- bayes_mvr_ridge(x,Y,V,S0[[i]])
+
+  # Compute the posterior assignment probabilities for the latent
+  # indicator variable.
+  logbf <- sapply(out,"[[","logbf")
+  w1    <- softmax(logbf + log(w0))
+
+  # Compute the log-Bayes factor as a linear combination of the
+  # individual Bayes factors for each mixture component.
+  z     <- log(w0) + logbf
+  u     <- max(z)
+  logbf <- u + log(sum(exp(z - u)))
+  
+  # Compute the posterior mean (mu1) and covariance (S1) of the
+  # regression coefficients.
+  S1  <- matrix(0,r,r)
+  mu1 <- rep(0,r)
+  # for (k in 1:K) {
+  #   wk  <- w1[k]
+  #   muk <- out[[k]]$mu1
+  #   Sk  <- out[[k]]$S1
+  #   mu1 <- mu1 + wk*muk
+  #   A   <- A   + wk*(Sk + tcrossprod(muk))
+  # }
+  # S1 <- A - tcrossprod(mu1)
+  
+  # Return the the posterior mean (mu1) and covariance (S1), the
+  # posterior assignment probabilities (w1), and the log-Bayes factor
+  # (logbf).
+  return(list(mu1   = mu1,
+              S1    = S1,
+              w1    = w1,
+              logbf = logbf))
+}
