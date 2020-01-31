@@ -1,5 +1,6 @@
 # TO DO: Explain here what this script does, and how to use it.
 library(MBSP)
+library(mvtnorm)
 source("../code/misc.R")
 source("../code/mr_mash.R")
 

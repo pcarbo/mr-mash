@@ -6,6 +6,7 @@ dot <- function (x,y)
 norm2 <- function (x)
   sqrt(dot(x,x))
 
-# Returns the log-determinant of matrix x.
-logdet <- function (x)
-  as.numeric(determinant(x,logarithm = TRUE)$modulus)
+# Returns the log-density of the multivariate normal with zero mean
+# and covarirance S at x.
+ldmvnorm <- function (x, S)
+  dmvnorm(x,sigma = S,log = TRUE)

@@ -23,13 +23,13 @@ bayes_mvr_ridge <- function (x, Y, V, S0) {
   
   # Compute the posterior mean (mu1) and covariance (S1) assuming a
   # multivariate normal prior with zero mean and covariance S0.
-  I   <- diag(ncol(Y))
+  r   <- ncol(Y)
+  I   <- diag(r)
   S1  <- S0 %*% solve(I + solve(S) %*% S0)
   mu1 <- drop(S1 %*% solve(S,bhat))
 
   # Compute the log-Bayes factor.
-  z     <- solve(S,bhat)
-  logbf <- (logdet(S) - logdet(S0 + S) + dot(z,S1 %*% z))/2
+  logbf <- ldmvnorm(bhat,S0 + S) - ldmvnorm(bhat,S)
   
   # Return the least-squares estimate (bhat) and its covariance (S), the
   # posterior mean (mu1) and covariance (S1), and the log-Bayes factor
