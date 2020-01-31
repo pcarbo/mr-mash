@@ -51,6 +51,7 @@ Y <- scale(Y,scale = FALSE)
 # FIT MR-MASH MODEL
 # -----------------
 fit <- mr_mash(Y,X,V,S0,w0,B0,20)
+plot(B,fit$B,pch = 20)
 
 # Test univariate computations:
 s0      <- lapply(S0,"[",1)
