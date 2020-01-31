@@ -10,7 +10,7 @@
 #
 bayes_mvr_ridge <- function (x, Y, V, S0) {
 
-  # Make sure that Y, V and S0 are matrices.
+  # Make sure Y, V and S0 are matrices.
   Y  <- as.matrix(Y)
   V  <- as.matrix(V)
   S0 <- as.matrix(S0)
@@ -50,12 +50,15 @@ bayes_mvr_ridge <- function (x, Y, V, S0) {
 # and the posterior covariance of the coefficients given that all the
 # coefficients are not zero (S1).
 bayes_mvr_mix <- function (x, Y, V, w0, S0) {
+    
+  # Make sure Y is a matrix.
+  Y <- as.matrix(Y)
   
   # Get the dimension of the response (r) and the number of mixture
   # components (k).
   r <- ncol(Y)
   k <- length(w0)
-  
+
   # Compute the quantities separately for each mixture component.
   out <- vector("list",k)
   for (i in 1:k)
@@ -77,11 +80,11 @@ bayes_mvr_mix <- function (x, Y, V, w0, S0) {
   S1  <- matrix(0,r,r)
   mu1 <- rep(0,r)
   for (i in 1:k) {
-    wi  <- w1[i]
-    mui <- out[[i]]$mu1
-    Si  <- out[[i]]$S1
-    mu1 <- mu1 + wi*mui
-    S1  <- S1 + wi*(Si + tcrossprod(mui))
+    w   <- w1[i]
+    mu  <- out[[i]]$mu1
+    S   <- out[[i]]$S1
+    mu1 <- mu1 + w*mu
+    S1  <- S1 + w*(S + tcrossprod(mu))
   }
   S1 <- S1 - tcrossprod(mu1)
   
@@ -89,7 +92,7 @@ bayes_mvr_mix <- function (x, Y, V, w0, S0) {
   # posterior assignment probabilities (w1), and the log-Bayes factor
   # (logbf).
   return(list(mu1   = mu1,
-              S1    = S1,
+              S1    = drop(S1),
               w1    = w1,
               logbf = logbf))
 }

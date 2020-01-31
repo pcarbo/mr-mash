@@ -22,13 +22,13 @@ B <- rbind(c(-2.0, -1.5),
 
 # The covariances in the mixture-of-normals prior on the regression
 # coefficients.
-S0 <- list(k1 = rbind(c(4,0),
-                      c(0,4)),
+S0 <- list(k1 = rbind(c(3,0),
+                      c(0,3)),
            k2 = rbind(c(4,2),
                       c(2,4)),
-           k3 = rbind(c(4,3.5),
+           k3 = rbind(c(6,3.5),
                       c(3.5,4)),
-           k4 = rbind(c(4,0),
+           k4 = rbind(c(5,0),
                       c(0,0)))
 
 # The mixture weights in the mixture-of-normals prior on the
@@ -51,13 +51,11 @@ Y <- matrix.normal(X %*% B,diag(n),V)
 # TO DO.
 
 # Test univariate computations.
-out <- bayes_mvr_ridge(X[,3],Y[,1],V[1],S0$k3[1])
+out <- bayes_mvr_mix(X[,3],Y[,1],V[1],w0,lapply(S0,"[",1))
 
 # Test computation of quantities for basic multivariate regression model.
-# out1 <- bayes_mvr_ridge(X[,3],Y,V,S0$k3)
 out1 <- bayes_mvr_mix(X[,3],Y,V,w0,S0)
 source("~/git/mr.mash.alpha/R/bayes_reg_mv.R")
-# out2 <- bayes_mvr_ridge(X[,3],Y,V,S0$k3)
 out2 <- bayes_mvr_mix(X[,3],Y,V,w0,S0)
 print(max(abs(out1$w1  - out2$w1)))
 print(max(abs(out1$mu1 - out2$mu1)))
