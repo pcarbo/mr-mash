@@ -59,19 +59,3 @@ fit <- mr_mash_simple(X,Y,V,S0,w0,B0,20)
 # against the coefficients used to simulate the data.
 plot(B,fit$B,pch = 20,xlab = "true",ylab = "estimated")
 abline(a = 0,b = 1,col = "skyblue",lty = "dotted")
-
-stop()
-
-# Optional: test univariate computations against varbvsmix.
-s0      <- lapply(S0,"[",1)
-s0[[1]] <- 1e-10
-b1      <- mr_mash_simple(Y[,1],X,V[1],s0,w0,B0[,1],20)$B
-
-s0    <- unlist(s0)
-s0[1] <- 0
-out   <- varbvsmix(X,NULL,Y[,1],V[1]*s0,V[1],w0,matrix(0,p,k),matrix(0,p,k),
-                   update.sigma = FALSE,update.sa = FALSE, update.w = FALSE,
-                   maxiter = 20,tol = 0,drop.threshold = 0,verbose = FALSE)
-b2    <- rowSums(out$alpha * out$mu)
-print(range(b1 - b2)) # Should be close to zero.
-
