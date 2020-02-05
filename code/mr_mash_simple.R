@@ -8,7 +8,7 @@
 # tried to make the code as simple as possible, with an emphasis on
 # clarity. Very little effort has been devoted to making the
 # implementation efficient, or the code concise.
-mr_mash_simple <- function (Y, X, V, S0, w0, B, numiter = 100) {
+mr_mash_simple <- function (X, Y, V, S0, w0, B, numiter = 100) {
   
   # This variable is used to keep track of the algorithm's progress.
   maxd <- rep(0,numiter)

@@ -1,7 +1,5 @@
-# An illustration of the mr_mash_simple implementation applied to a
-# small, simulated data set.
-suppressMessages(library(MBSP))
-library(mvtnorm)
+# A test that mr_mash_simple also works for univariate linear
+# regression (i.e., r = 1).
 source("../code/misc.R")
 source("../code/mr_mash.R")
 
@@ -11,26 +9,12 @@ source("../code/mr_mash.R")
 n <- 500
 p <- 20
 
-# Residual covariance matrix.
-V <- rbind(c(1.0,0.2),
-           c(0.2,0.4))
-r <- nrow(V)
-
 # True effects used to simulate the data.
-B <- rbind(c(-2.0, -1.5),
-           c( 1.0,  1.0),
-           matrix(0,p - 2,r))
+b <- c(-2,1,rep(0,p - 2))
 
-# Covariances in the mixture-of-normals prior on the regression
+# Variances in the mixture-of-normals prior on the regression
 # coefficients.
-S0 <- list(k1 = rbind(c(3,0),
-                      c(0,3)),
-           k2 = rbind(c(4,2),
-                      c(2,4)),
-           k3 = rbind(c(6,3.5),
-                      c(3.5,4)),
-           k4 = rbind(c(5,0),
-                      c(0,0)))
+s0 <- list(k1 = 3,k2 = 4,k3 = 6,k4 = 5)
 
 # The mixture weights in the mixture-of-normals prior on the
 # regression coefficients.
@@ -46,14 +30,14 @@ X <- scale(X,scale = FALSE)
 # Simulate Y ~ MN(X*B,I,V). Note that matrix.normal from the MBSP
 # package appears to be much faster than rmatrixnorm from the
 # MixMatrix package.
-Y <- matrix.normal(X %*% B,diag(n),V)
-Y <- scale(Y,scale = FALSE)
+y <- drop(X %*% b + rnorm(n))
+y <- y - mean(y)
 
 # FIT MR-MASH MODEL
 # -----------------
 # Run 20 co-ordinate ascent updates.
-B0  <- matrix(0,p,r)
-fit <- mr_mash_simple(Y,X,V,S0,w0,B0,20)
+b0  <- rep(0,p)
+fit <- mr_mash_simple(X,y,1,s0,w0,B0,20)
 
 # Compare the posterior mean estimates of the regression coefficients
 # against the coefficients used to simulate the data.
