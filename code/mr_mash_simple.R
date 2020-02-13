@@ -70,7 +70,7 @@ mr_mash_update_simple <- function (X, Y, B, V, w0, S0) {
     R <- R - outer(x,b)
   }
 
-  # Output the updated predictors.
+  # Output the updated posterior mean coefficients.
   return(drop(B))
 }
 
