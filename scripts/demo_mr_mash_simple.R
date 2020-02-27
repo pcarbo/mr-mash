@@ -2,8 +2,10 @@
 # small, simulated data set.
 suppressMessages(library(MBSP))
 library(mvtnorm)
+library(Rcpp)
 source("../code/misc.R")
 source("../code/mr_mash_simple.R")
+sourceCpp("../code/mr_mash_simple.cpp")
 
 # SCRIPT PARAMETERS
 # -----------------
@@ -52,10 +54,10 @@ Y <- scale(Y,scale = FALSE)
 # FIT MR-MASH MODEL
 # -----------------
 # Run 20 co-ordinate ascent updates.
-B0  <- matrix(0,p,r)
-fit <- mr_mash_simple(X,Y,V,S0,w0,B0,20)
+B0   <- matrix(0,p,r)
+fit1 <- mr_mash_simple(X,Y,V,S0,w0,B0,20)
 
 # Compare the posterior mean estimates of the regression coefficients
 # against the coefficients used to simulate the data.
-plot(B,fit$B,pch = 20,xlab = "true",ylab = "estimated")
+plot(B,fit1$B,pch = 20,xlab = "true",ylab = "estimated")
 abline(a = 0,b = 1,col = "skyblue",lty = "dotted")
