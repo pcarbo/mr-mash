@@ -5,7 +5,7 @@ library(mvtnorm)
 library(Rcpp)
 source("../code/misc.R")
 source("../code/mr_mash_simple.R")
-sourceCpp("../code/mr_mash_simple.cpp")
+sourceCpp("../code/mr_mash.cpp")
 
 # SCRIPT PARAMETERS
 # -----------------
@@ -61,3 +61,6 @@ fit1 <- mr_mash_simple(X,Y,V,S0,w0,B0,20)
 # against the coefficients used to simulate the data.
 plot(B,fit1$B,pch = 20,xlab = "true",ylab = "estimated")
 abline(a = 0,b = 1,col = "skyblue",lty = "dotted")
+
+# Test the C++ code.
+fit2 <- mr_mash_simple(X,Y,V,S0,w0,B0,20,version = "Rcpp")

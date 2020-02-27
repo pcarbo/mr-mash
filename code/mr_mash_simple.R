@@ -9,7 +9,8 @@
 # clarity. Very little effort has been devoted to making the
 # implementation efficient, or the code concise.
 mr_mash_simple <- function (X, Y, V, S0, w0, B, numiter = 100,
-                            version = c("R", "Rcpp")) {
+                            version = c("R","Rcpp")) {
+  version <- match.arg(version)
   
   # This variable is used to keep track of the algorithm's progress.
   maxd <- rep(0,numiter)
@@ -21,7 +22,7 @@ mr_mash_simple <- function (X, Y, V, S0, w0, B, numiter = 100,
     B0 <- B
       
     # Update the posterior means of the regression coefficients.
-    B <- mr_mash_update_simple(X,Y,B,V,w0,S0)
+    B <- mr_mash_update_simple(X,Y,B,V,w0,S0,version)
     
     # Store the largest change in the posterior means.
     maxd[i] <- abs(max(B - B0))
@@ -42,8 +43,8 @@ mr_mash_simple <- function (X, Y, V, S0, w0, B, numiter = 100,
 # tried to make the code as simple as possible, with an emphasis on
 # clarity. Very little effort has been devoted to making the
 # implementation efficient, or the code concise.
-mr_mash_update_simple <- function (X, Y, B, V, w0, S0) {
-
+mr_mash_update_simple <- function (X, Y, B, V, w0, S0, version) {
+    
   # Make sure B is a matrix.
   B <- as.matrix(B)
     
@@ -63,7 +64,7 @@ mr_mash_update_simple <- function (X, Y, B, V, w0, S0) {
 
     # Update the posterior of the regression coefficients for the ith
     # predictor.
-    out   <- bayes_mvr_mix_simple(x,R,V,w0,S0)
+    out   <- bayes_mvr_mix_simple(x,R,V,w0,S0,version)
     b     <- out$mu1
     B[i,] <- b
     
@@ -137,7 +138,7 @@ bayes_mvr_ridge_simple <- function (x, Y, V, S0) {
 # tried to make the code as simple as possible, with an emphasis on
 # clarity. Very little effort has been devoted to making the
 # implementation efficient, or the code concise.
-bayes_mvr_mix_simple <- function (x, Y, V, w0, S0) {
+bayes_mvr_mix_simple <- function (x, Y, V, w0, S0, version) {
     
   # Make sure Y is a matrix.
   Y <- as.matrix(Y)
@@ -150,8 +151,13 @@ bayes_mvr_mix_simple <- function (x, Y, V, w0, S0) {
   # Compute the quantities separately for each mixture component.
   out <- vector("list",k)
   for (i in 1:k)
-    out[[i]] <- bayes_mvr_ridge_simple(x,Y,V,S0[[i]])
-  # out2 <- bayes_mvr_ridge_simple_rcpp(x,Y,V,S0[[1]])
+    if (version == "R")
+      out[[i]] <- bayes_mvr_ridge_simple(x,Y,V,S0[[i]])
+    else
+      out[[i]] <- within(bayes_mvr_ridge_rcpp(x,Y,V,S0[[i]]),{
+                           bhat <- drop(bhat)
+                           mu1 <- drop(mu1)
+                         })
   
   # Compute the posterior assignment probabilities for the latent
   # indicator variable.
