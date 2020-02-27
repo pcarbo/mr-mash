@@ -64,3 +64,4 @@ abline(a = 0,b = 1,col = "skyblue",lty = "dotted")
 
 # Test the C++ code.
 fit2 <- mr_mash_simple(X,Y,V,S0,w0,B0,20,version = "Rcpp")
+print(range(fit1$B - fit2$B))

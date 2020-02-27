@@ -153,10 +153,10 @@ bayes_mvr_mix_simple <- function (x, Y, V, w0, S0, version) {
   for (i in 1:k)
     if (version == "R")
       out[[i]] <- bayes_mvr_ridge_simple(x,Y,V,S0[[i]])
-    else
+    else if (version == "Rcpp")
       out[[i]] <- within(bayes_mvr_ridge_rcpp(x,Y,V,S0[[i]]),{
                            bhat <- drop(bhat)
-                           mu1 <- drop(mu1)
+                           mu1  <- drop(mu1)
                          })
   
   # Compute the posterior assignment probabilities for the latent
