@@ -2,7 +2,6 @@
 // system is singular or close to singular.
 #define ARMA_DONT_PRINT_ERRORS
 
-#include <cmath>
 #include <RcppArmadillo.h>
 
 using namespace Rcpp;
@@ -47,9 +46,8 @@ double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
   
   // Compute the least-squares estimate of the coefficients (bhat) and
   // the covariance of the standard error (S).
-  double xx = norm(x);
-  xx  *= xx;
-  bhat = trans(Y)*x/xx;
+  double xx = dot(x,x);
+  bhat = trans(Y) * x/xx;
   S    = V/xx;
 
   // Compute the posterior mean (mu1) and covariance (S1) assumig63ng a
@@ -63,10 +61,10 @@ double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
 }
 
 // Compute the log-probability density of the multivariate normal
-// distribution with zero mean and covariance matrix S.
+// distribution with zero mean and covariance matrix S, omitting terms
+// that do not depend on x or S.
 double ldmvnorm (const arma::vec& x, const arma::mat& S) {
-  double n = (double) x.n_elem;
   mat    L = chol(S,"lower");
   double d = norm(solve(L,x),2);
-  return -(n*log(2*M_PI) + d*d)/2 - sum(log(L.diag()));
+  return -(d*d)/2 - sum(log(L.diag()));
 }
