@@ -151,7 +151,8 @@ bayes_mvr_mix_simple <- function (x, Y, V, w0, S0) {
   out <- vector("list",k)
   for (i in 1:k)
     out[[i]] <- bayes_mvr_ridge_simple(x,Y,V,S0[[i]])
-
+  # out2 <- bayes_mvr_ridge_simple_rcpp(x,Y,V,S0[[1]])
+  
   # Compute the posterior assignment probabilities for the latent
   # indicator variable.
   logbf <- sapply(out,"[[","logbf")
