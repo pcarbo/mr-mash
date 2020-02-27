@@ -15,8 +15,21 @@ double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
 			const mat& S0, vec& bhat, mat& S, vec& mu1,
 			mat& S1);
 
+double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V);
+  
 // FUNCTION DEFINITIONS
 // --------------------
+// This is mainly used to test the bayes_mvr_mix C++ function
+// defined below.
+// 
+// [[Rcpp::plugins("cpp11")]]
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::export]]
+List bayes_mvr_mix_rcpp (const arma::vec& x, const arma::mat& Y,
+			   const arma::mat& V) {
+  // TO DO.
+}
+
 // This is mainly used to test the bayes_mvr_ridge C++ function
 // defined below.
 // 
@@ -36,6 +49,11 @@ List bayes_mvr_ridge_rcpp (const arma::vec& x, const arma::mat& Y,
                       Named("mu1")   = mu1,
                       Named("S1")    = S1,
                       Named("logbf") = logbf);
+}
+
+// Compare this to the R function bayes_mvr_mix_simple.
+double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V) {
+  // TO DO.
 }
 
 // Compare this to the R function bayes_mvr_ridge_simple.
