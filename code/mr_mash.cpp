@@ -55,7 +55,7 @@ double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
   // Compute the posterior mean (mu1) and covariance (S1) assumig63ng a
   // multivariate normal prior with zero mean and covariance S0.
   mat I(r,r,fill::eye);
-  S1  = S0 * inv(I + inv(S) * S0);
+  S1  = S0 * inv(I + solve(S,S0));
   mu1 = S1 * solve(S,bhat);
 
   // Compute the log-Bayes factor.

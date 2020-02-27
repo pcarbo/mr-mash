@@ -5,7 +5,7 @@ library(mvtnorm)
 library(Rcpp)
 source("../code/misc.R")
 source("../code/mr_mash_simple.R")
-sourceCpp("../code/mr_mash.cpp")
+sourceCpp("../code/mr_mash.cpp",verbose = TRUE)
 
 # SCRIPT PARAMETERS
 # -----------------
