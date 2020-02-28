@@ -9,8 +9,6 @@ using namespace arma;
 
 // FUNCTION DECLARATIONS
 // ---------------------
-void outer (const vec& x, mat& Y);
-
 void softmax (vec& x);
 
 double ldmvnorm (const vec& x, const mat& S);
@@ -28,7 +26,11 @@ double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
 
 // FUNCTION DEFINITIONS
 // --------------------
-// TO DO: Explain here what this function doees, and how to use it.
+// Perform a single pass of the co-ordinate ascent updates for the
+// mr-mash model. These two calls in R should produce the same result:
+// 
+//   B <- mr_mash_update_simple(X,Y,B,V,w0,S0)
+//   B <- mr_mash_update_rcpp(X,Y,B,V,w0,simplify2array(S0))
 // 
 // [[Rcpp::plugins("cpp11")]]
 // [[Rcpp::depends(RcppArmadillo)]]
@@ -94,7 +96,8 @@ List bayes_mvr_mix_rcpp (const arma::vec& x, const arma::mat& Y,
 		      Named("logbf") = logbf);
 }
 
-// Compare this to the R function mr_mash_update_simple.
+// Compare this to the R function mr_mash_update_simple. Use
+// mr_mash_update_rcpp to call this function from R.
 void mr_mash_update (const mat& X, const mat& Y, const mat& V,
 		     const vec& w0, const cube& S0, mat& B) {
   unsigned int n = X.n_rows;
@@ -107,8 +110,7 @@ void mr_mash_update (const mat& X, const mat& Y, const mat& V,
   vec w1(k);
   
   // Compute the expected residuals.
-  mat R = Y;
-  R -= X * B;
+  mat R = Y - X * B;
 
   // Repeat for each predictor.
   for (unsigned int i = 0; i < p; i++) {
@@ -180,24 +182,16 @@ double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
   S1.fill(0);
   mu1.fill(0);
   for (unsigned int i = 0; i < k; i++) {
-    b = mu1mix.col(i);
-    outer(b,S);
+    b    = mu1mix.col(i);
     mu1 += w1(i) * b;
-    S1  += w1(i) * (S1mix.slice(i) + S);
+    S1  += w1(i) * (S1mix.slice(i) + b * trans(b));
   }
-  outer(mu1,S);
-  S1 -= S;
+  S1 -= mu1 * trans(mu1);
   
   // Compute the log-Bayes factor as a linear combination of the
   // individual Bayes factors for each mixture component.
   double u = max(logbfmix);
   return u + log(sum(exp(logbfmix - u)));
-}
-
-// Compute the outer product of vector x, and store it in Y; that is,
-// if x is a vector of length n, the output is an n x n matrix x*x'.
-void outer (const vec& x, mat& Y) {
-  Y = x * trans(x);
 }
 
 // Compute the softmax of x, and return the result in x. Guard against
