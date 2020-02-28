@@ -9,7 +9,11 @@ using namespace arma;
 
 // FUNCTION DECLARATIONS
 // ---------------------
-double ldmvnorm (const arma::vec& x, const arma::mat& S);
+void outer (const vec& x, mat& Y);
+
+void softmax (vec& x);
+
+double ldmvnorm (const vec& x, const mat& S);
 
 double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
 			const mat& S0, vec& bhat, mat& S, vec& mu1,
@@ -18,12 +22,12 @@ double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
 double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
 		      const vec& w0, const cube& S0, vec& mu1, mat& S1,
 		      vec& w1);
-  
+
 // FUNCTION DEFINITIONS
 // --------------------
 // This is mainly used to test the bayes_mvr_ridge C++ function
-// defined below. It is called in the same way as
-// bayes_mvr_ridge_simple, e.g.,
+// defined below. It is called in the same way as bayes_mvr_ridge_simple,
+// e.g.,
 //
 //    out1 <- bayes_mvr_ridge_simple(x,Y,V,S0)
 //    out2 <- bayes_mvr_ridge_rcpp(x,Y,V,S0)
@@ -46,9 +50,16 @@ List bayes_mvr_ridge_rcpp (const arma::vec& x, const arma::mat& Y,
                       Named("logbf") = logbf);
 }
 
-// This is mainly used to test the bayes_mvr_mix C++ function
-// defined below.
+// This is mainly used to test the bayes_mvr_mix C++ function defined
+// below. It is called in the same way as bayes_mvr_mix_simple, except
+// that input S0 is not a list of matrices, but rather an r x r x k
+// "cube" (3-d array), storing the S0 matrices. This cube can easily
+// be obtained from the list using the R function simplify2array,
+// e.g.,
 // 
+//   out1 <- bayes_mvr_mix_simple(x,R,V,w0,S0)
+//   out2 <- bayes_mvr_mix_rcpp(x,R,V,w0,simplify2array(S0))
+//	       
 // [[Rcpp::plugins("cpp11")]]
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
@@ -95,7 +106,7 @@ double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
 		      vec& w1) {
   unsigned int k = w0.n_elem;
   unsigned int r = Y.n_cols;
-  vec  bhat(r);
+  vec  b(r);
   mat  S(r,r);
   vec  logbfmix(k);
   mat  mu1mix(r,k);
@@ -103,7 +114,7 @@ double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
   
   // Compute the quantities separately for each mixture component.
   for (unsigned int i = 0; i < k; i++) {
-    logbfmix(i)    = bayes_mvr_ridge(x,Y,V,S0.slice(i),bhat,S,mu1,S1);
+    logbfmix(i)    = bayes_mvr_ridge(x,Y,V,S0.slice(i),b,S,mu1,S1);
     mu1mix.col(i)  = mu1;
     S1mix.slice(i) = S1;
   }
@@ -111,12 +122,41 @@ double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
   // Compute the posterior assignment probabilities for the latent
   // indicator variable.
   logbfmix += log(w0);
-  // TO DO.
+  w1 = logbfmix;
+  softmax(w1);
+
+  // Compute the posterior mean (mu1) and covariance (S1) of the
+  // regression coefficients.
+  S1.fill(0);
+  mu1.fill(0);
+  for (unsigned int i = 0; i < k; i++) {
+    b = mu1mix.col(i);
+    outer(b,S);
+    mu1 += w1(i) * b;
+    S1  += w1(i) * (S1mix.slice(i) + S);
+  }
+  outer(mu1,S);
+  S1 -= S;
   
   // Compute the log-Bayes factor as a linear combination of the
   // individual Bayes factors for each mixture component.
   double u = max(logbfmix);
   return u + log(sum(exp(logbfmix - u)));
+}
+
+// Compute the outer product of vector x, and store it in Y; that is,
+// if x is a vector of length n, the output is an n x n matrix x*x'.
+void outer (const vec& x, mat& Y) {
+  Y = x * trans(x);
+}
+
+// Compute the softmax of x, and return the result in x. Guard against
+// underflow or overflow by adjusting the entries of x so that the
+// largest value is zero.
+void softmax (vec& x) {
+  x -= max(x);
+  x  = exp(x);
+  x /= sum(x);
 }
 
 // Compute the log-probability density of the multivariate normal

@@ -66,8 +66,11 @@ mr_mash_update_simple <- function (X, Y, B, V, w0, S0, version) {
     # predictor.
     if (version == "R")
       out <- bayes_mvr_mix_simple(x,R,V,w0,S0)
-    else if (version == "Rcpp")
-      out <- bayes_mvr_mix_rcpp(x,R,V,w0,simplify2array(S0))
+    else if (version == "Rcpp") {
+      out     <- bayes_mvr_mix_rcpp(x,R,V,w0,simplify2array(S0))
+      out$mu1 <- drop(out$mu1)
+      out$w1  <- drop(out$w1)
+    }
     b     <- out$mu1
     B[i,] <- b
     
@@ -173,7 +176,7 @@ bayes_mvr_mix_simple <- function (x, Y, V, w0, S0) {
   mu1 <- rep(0,r)
   for (i in 1:k) {
     w   <- w1[i]
-    mu  <- drop(out[[i]]$mu1)
+    mu  <- out[[i]]$mu1
     S   <- out[[i]]$S1
     mu1 <- mu1 + w*mu
     S1  <- S1 + w*(S + tcrossprod(mu))
