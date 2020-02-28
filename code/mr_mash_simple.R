@@ -64,7 +64,10 @@ mr_mash_update_simple <- function (X, Y, B, V, w0, S0, version) {
 
     # Update the posterior of the regression coefficients for the ith
     # predictor.
-    out   <- bayes_mvr_mix_simple(x,R,V,w0,S0,version)
+    if (version == "R")
+      out <- bayes_mvr_mix_simple(x,R,V,w0,S0)
+    else if (version == "Rcpp")
+      out <- bayes_mvr_mix_rcpp(x,R,V,w0,simplify2array(S0))
     b     <- out$mu1
     B[i,] <- b
     
@@ -138,7 +141,7 @@ bayes_mvr_ridge_simple <- function (x, Y, V, S0) {
 # tried to make the code as simple as possible, with an emphasis on
 # clarity. Very little effort has been devoted to making the
 # implementation efficient, or the code concise.
-bayes_mvr_mix_simple <- function (x, Y, V, w0, S0, version) {
+bayes_mvr_mix_simple <- function (x, Y, V, w0, S0) {
     
   # Make sure Y is a matrix.
   Y <- as.matrix(Y)
@@ -151,22 +154,16 @@ bayes_mvr_mix_simple <- function (x, Y, V, w0, S0, version) {
   # Compute the quantities separately for each mixture component.
   out <- vector("list",k)
   for (i in 1:k)
-    if (version == "R")
-      out[[i]] <- bayes_mvr_ridge_simple(x,Y,V,S0[[i]])
-    else if (version == "Rcpp")
-      out[[i]] <- within(bayes_mvr_ridge_rcpp(x,Y,V,S0[[i]]),{
-                           bhat <- drop(bhat)
-                           mu1  <- drop(mu1)
-                         })
+    out[[i]] <- bayes_mvr_ridge_simple(x,Y,V,S0[[i]])
   
   # Compute the posterior assignment probabilities for the latent
   # indicator variable.
   logbf <- sapply(out,"[[","logbf")
-  w1    <- softmax(logbf + log(w0))
+  z     <- logbf + log(w0)
+  w1    <- softmax(z)
 
   # Compute the log-Bayes factor as a linear combination of the
   # individual Bayes factors for each mixture component.
-  z     <- log(w0) + logbf
   u     <- max(z)
   logbf <- u + log(sum(exp(z - u)))
   
@@ -176,7 +173,7 @@ bayes_mvr_mix_simple <- function (x, Y, V, w0, S0, version) {
   mu1 <- rep(0,r)
   for (i in 1:k) {
     w   <- w1[i]
-    mu  <- out[[i]]$mu1
+    mu  <- drop(out[[i]]$mu1)
     S   <- out[[i]]$S1
     mu1 <- mu1 + w*mu
     S1  <- S1 + w*(S + tcrossprod(mu))
