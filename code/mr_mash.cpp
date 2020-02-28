@@ -15,6 +15,9 @@ void softmax (vec& x);
 
 double ldmvnorm (const vec& x, const mat& S);
 
+void mr_mash_update (const mat& X, const mat& Y, const mat& V,
+		     const vec& w0, const cube& S0, mat& B);
+
 double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
 			const mat& S0, vec& bhat, mat& S, vec& mu1,
 			mat& S1);
@@ -25,6 +28,19 @@ double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
 
 // FUNCTION DEFINITIONS
 // --------------------
+// TO DO: Explain here what this function doees, and how to use it.
+// 
+// [[Rcpp::plugins("cpp11")]]
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::export]]
+arma::mat mr_mash_update_rcpp (const arma::mat& X, const arma::mat& Y,
+			       const arma::mat& B0, const arma::mat& V,
+			       const arma::vec& w0, const arma::cube& S0) {
+  mat B = B0;
+  mr_mash_update(X,Y,V,w0,S0,B);
+  return B;
+}
+
 // This is mainly used to test the bayes_mvr_ridge C++ function
 // defined below. It is called in the same way as bayes_mvr_ridge_simple,
 // e.g.,
@@ -76,6 +92,40 @@ List bayes_mvr_mix_rcpp (const arma::vec& x, const arma::mat& Y,
                       Named("S1")    = S1,
 		      Named("w1")    = w1,
 		      Named("logbf") = logbf);
+}
+
+// Compare this to the R function mr_mash_update_simple.
+void mr_mash_update (const mat& X, const mat& Y, const mat& V,
+		     const vec& w0, const cube& S0, mat& B) {
+  unsigned int n = X.n_rows;
+  unsigned int p = X.n_cols;
+  unsigned int r = Y.n_cols;
+  unsigned int k = w0.n_elem;
+  mat S1(r,r);
+  vec x(n);
+  vec b(r);
+  vec w1(k);
+  
+  // Compute the expected residuals.
+  mat R = Y;
+  R -= X * B;
+
+  // Repeat for each predictor.
+  for (unsigned int i = 0; i < p; i++) {
+    x = X.col(i);
+    b = trans(B.row(i));
+    
+    // Disregard the ith predictor in the expected residuals.
+    R += x * trans(b);
+
+    // Update the posterior of the regression coefficients for the ith
+    // predictor.
+    bayes_mvr_mix(x,R,V,w0,S0,b,S1,w1);
+    B.row(i) = trans(b);
+    
+    // Update the expected residuals.
+    R -= x * trans(b);
+  }
 }
 
 // Compare this to the R function bayes_mvr_ridge_simple.
