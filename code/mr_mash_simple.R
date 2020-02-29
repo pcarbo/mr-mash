@@ -11,6 +11,9 @@
 mr_mash_simple <- function (X, Y, V, S0, w0, B, numiter = 100,
                             version = c("R","Rcpp")) {
   version <- match.arg(version)
+  Y       <- as.matrix(Y)
+  r       <- ncol(Y)
+  k       <- length(w0)
   
   # This variable is used to keep track of the algorithm's progress.
   maxd <- rep(0,numiter)
@@ -25,7 +28,8 @@ mr_mash_simple <- function (X, Y, V, S0, w0, B, numiter = 100,
     if (version == "R")
       B <- mr_mash_update_simple(X,Y,B,V,w0,S0)
     else if (version == "Rcpp")
-      B <- mr_mash_update_rcpp(X,Y,B,V,w0,simplify2array(S0))
+      B <- drop(mr_mash_update_rcpp(X,Y,as.matrix(B),as.matrix(V),w0,
+                                    array(simplify2array(S0),c(r,r,k))))
     
     # Store the largest change in the posterior means.
     maxd[i] <- abs(max(B - B0))

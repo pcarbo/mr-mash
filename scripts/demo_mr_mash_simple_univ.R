@@ -2,8 +2,10 @@
 # regression (i.e., r = 1).
 library(mvtnorm)
 library(varbvs)
+library(Rcpp)
 source("../code/misc.R")
 source("../code/mr_mash_simple.R")
+sourceCpp("../code/mr_mash.cpp",verbose = TRUE)
 
 # SCRIPT PARAMETERS
 # -----------------
@@ -38,13 +40,17 @@ y <- y - mean(y)
 # FIT MR-MASH MODEL
 # -----------------
 # Run 20 co-ordinate ascent updates.
-b0  <- rep(0,p)
-fit <- mr_mash_simple(X,y,1,s0,w0,b0,20)
+b0   <- rep(0,p)
+fit1 <- mr_mash_simple(X,y,1,s0,w0,b0,20)
 
 # Compare the posterior mean estimates of the regression coefficients
 # against the coefficients used to simulate the data.
-plot(b,fit$B,pch = 20,xlab = "true",ylab = "estimated")
+plot(b,fit1$B,pch = 20,xlab = "true",ylab = "estimated")
 abline(a = 0,b = 1,col = "skyblue",lty = "dotted")
+
+# Test the C++ code.
+fit2 <- mr_mash_simple(X,y,1,s0,w0,b0,20,version = "Rcpp")
+print(range(fit1$B - fit2$B))
 
 # FIR VARBVSMIX MODEL
 # -------------------
@@ -56,5 +62,5 @@ out <- varbvsmix(X,NULL,y,s0,1,w0,matrix(0,p,k),matrix(0,p,k),
 b   <- with(out,rowSums(alpha * mu))
 
 # Should be close to zero.
-print(max(abs(fit$B - b)))
+print(max(abs(fit1$B - b)))
 
