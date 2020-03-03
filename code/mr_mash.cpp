@@ -278,5 +278,87 @@ double ldmvnorm (const arma::vec& x, const arma::mat& S) {
 
 
 
+// CODE BELOW NEEDS TO BE FIXED
+
+double bayes_mvr_mix_scaled_X (const vec& x, const mat& Y, const vec& w0, const cube& S0, const mat& S, const cube& S1,
+                               const cube& SplusS0_chol, const mat& S_chol, double ldetSplusS0_chol, double ldetS_chol,
+                               vec& mu1_mix, mat& S1_mix, vec& w1);
 
 
+// Compare this to the R function bayes_mvr_mix_simple.
+double bayes_mvr_mix_scaled_X (const vec& x, const mat& Y, const vec& w0, const cube& S0, const mat& S, const cube& S1,
+                               const cube& SplusS0_chol, const mat& S_chol, const vec& ldetSplusS0_chol, double ldetS_chol,
+                               vec& mu1_mix, mat& S1_mix, vec& w1) {
+  unsigned int k = w0.n_elem;
+  unsigned int r = Y.n_cols;
+  unsigned int n = Y.n_rows;
+  
+  mat mu1mix(r,k);
+  vec logbfmix(k);
+  vec mu1(r);
+  
+  // Compute the least-squares estimate.
+  vec b = trans(Y)*x/(n-1);
+  
+  // Compute the quantities separately for each mixture component.
+  for (unsigned int i = 0; i < k; i++) {
+    logbfmix(i)    =  bayes_mvr_ridge_scaled_X(b, S0.slice(i), S, S1.slice(i), SplusS0_chol.slice(i), S_chol, 
+                                              ldetSplusS0_chol(i), ldetS_chol, mu1);
+    
+    mu1mix.col(i)  = mu1;
+  }
+  
+  // Compute the posterior assignment probabilities for the latent
+  // indicator variable.
+  logbfmix += log(w0);
+  w1 = logbfmix;
+  softmax(w1);
+  
+  // Compute the posterior mean (mu1) and covariance (S1_mix) of the
+  // regression coefficients.
+  S1_mix.fill(0);
+  mu1_mix.fill(0);
+  for (unsigned int i = 0; i < k; i++) {
+    b    = mu1mix.col(i);
+    mu1_mix += w1(i) * b;
+    S1_mix  += w1(i) * (S1.slice(i) + b * trans(b));
+  }
+  S1_mix -= mu1_mix * trans(mu1_mix);
+  
+  // Compute the log-Bayes factor as a linear combination of the
+  // individual Bayes factors for each mixture component.
+  double u = max(logbfmix);
+  return u + log(sum(exp(logbfmix - u)));
+}
+
+
+
+
+// This is mainly used to test the bayes_mvr_mix C++ function defined
+// below. It is called in the same way as bayes_mvr_mix_simple, except
+// that input S0 is not a list of matrices, but rather an r x r x k
+// "cube" (3-d array), storing the S0 matrices. This cube can easily
+// be obtained from the list using the R function simplify2array,
+// e.g.,
+// 
+//   out1 <- bayes_mvr_mix_simple(x,R,V,w0,S0)
+//   out2 <- bayes_mvr_mix_rcpp(x,R,V,w0,simplify2array(S0))
+//	       
+// [[Rcpp::plugins("cpp11")]]
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::export]]
+List bayes_mvr_mix_scaled_X_rcpp (const arma::vec& x, const arma::mat& Y, const arma::vec& w0, const arma::cube& S0, const arma::mat& S, const arma::cube& S1,
+                                  const arma::cube& SplusS0_chol, const arma::mat& S_chol, double ldetSplusS0_chol, double ldetS_chol) {
+  unsigned int r = Y.n_cols;
+  unsigned int k = w0.n_elem;
+  vec mu1_mix(r);
+  mat S1_mix(r,r);
+  vec w1(k);
+  double logbf_mix = bayes_mvr_mix_scaled_X(x, Y, w0, S0, S, S1, SplusS0_chol, S_chol, 
+                                            ldetSplusS0_chol, ldetS_chol, mu1_mix, S1_mix, w1);
+  
+  return List::create(Named("mu1")   = mu1_mix,
+                      Named("S1")    = S1_mix,
+                      Named("w1")    = w1,
+                      Named("logbf") = logbf_mix);
+}
