@@ -147,7 +147,7 @@ void mr_mash_update (const mat& X, const mat& Y, const mat& V,
 double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
                         const mat& S0, vec& bhat, mat& S, vec& mu1,
                         mat& S1) {
-  unsigned int r = Y.n_cols;
+  // unsigned int r = Y.n_cols;
   
   // Compute the least-squares estimate of the coefficients (bhat) and
   // the covariance of the standard error (S).
@@ -157,9 +157,14 @@ double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
   
   // Compute the posterior mean (mu1) and covariance (S1) assumig63ng a
   // multivariate normal prior with zero mean and covariance S0.
-  mat I(r,r,fill::eye);
-  S1  = S0 * inv(I + solve(S,S0));
-  mu1 = S1 * solve(S,bhat);
+  // mat I(r,r,fill::eye);
+  // S1  = S0 * inv(I + solve(S,S0));
+  mat SplusS0_chol = chol(S+S0, "upper");
+  S1 = S0*solve(trimatu(SplusS0_chol), solve(trimatl(trans(SplusS0_chol)), S));
+  
+  //mu1 = S1 * solve(S,bhat);
+  mat S_chol = chol(S, "upper");
+  mu1 = S1 * solve(trimatu(S_chol), solve(trimatl(trans(S_chol)), bhat));
   
   // Compute the log-Bayes factor.
   return ldmvnorm(bhat,S0 + S) - ldmvnorm(bhat,S);
