@@ -13,6 +13,8 @@ void softmax (vec& x);
 
 double ldmvnorm (const vec& x, const mat& S);
 
+double chol2ldet (const mat& R);
+
 void inner_loop (const mat& X, mat& R, const mat& V,
                  const vec& w0, const cube& S0, mat& B);
 
@@ -27,6 +29,11 @@ double bayes_mvr_ridge_scaled_X (const vec& b, const mat& S0, const mat& S,
 				 const mat& S1, const mat& SplusS0_chol,
 				 const mat& S_chol, double ldetSplusS0_chol,
 				 double ldet_chol, vec& mu1);
+
+double bayes_mvr_ridge_centered_X (const vec& b, const mat& S0, const mat& S,
+                                   const mat& S1, const mat& SplusS0_chol,
+                                   const mat& S_chol, double ldetSplusS0_chol,
+                                   double ldet_chol, vec& mu1);
 
 double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
                       const vec& w0, const cube& S0, vec& mu1, mat& S1,
@@ -170,6 +177,30 @@ List bayes_mvr_mix_scaled_X_rcpp (const arma::vec& x, const arma::mat& Y,
 }
 
 
+// This is mainly used to test the bayes_mvr_ridge_centered_X C++ function
+// defined below. It is called in the same way as bayes_mvr_ridge_simple,
+// e.g.,
+//
+//    out1 <- bayes_mvr_ridge_simple(x,Y,V,S0)
+//    out2 <- bayes_mvr_ridge_centered_X_rcpp(V, b, S, S0, xtx, V_chol, S_chol, U0, d, Q)
+// 
+// [[Rcpp::plugins("cpp11")]]
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::export]]
+List bayes_mvr_ridge_centered_X_rcpp (const mat& V, const vec& b, const mat& S, 
+                                      const mat& S0, double xtx, const mat& V_chol,
+                                      const mat& S_chol, const mat& U0, const vec& d,
+                                      const mat& Q) {
+  unsigned int r = b.n_elem;
+  vec    mu1(r);
+  mat    S1(r,r);
+  double logbf = bayes_mvr_ridge_centered_X(V, b, S, S0, xtx, V_chol, S_chol, U0, d, Q, mu1, S1);
+  return List::create(Named("mu1")   = mu1,
+                      Named("S1")   = S1,
+                      Named("logbf") = logbf);
+}
+
+
 //Perform the inner loop
 void inner_loop (const mat& X, mat& R, const mat& V,
                  const vec& w0, const cube& S0, mat& B) {
@@ -253,6 +284,27 @@ double bayes_mvr_ridge_scaled_X (const vec& b, const mat& S0, const mat& S,
   // Compute the log-Bayes factor.
   // return ldmvnorm(bhat,S0 + S) - ldmvnorm(bhat,S);
   return (ldetS_chol - ldetSplusS0_chol +
+          dot(b, solve(trimatu(S_chol), solve(trimatl(trans(S_chol)), b))) - 
+          dot(b, solve(trimatu(SplusS0_chol), solve(trimatl(trans(SplusS0_chol)), b))))/2;
+}
+
+// Compare this to the R function bayes_mvr_ridge_simple.
+double bayes_mvr_ridge_centered_X (const mat& V, const vec& b, const mat& S, 
+                                   const mat& S0, double xtx, const mat& V_chol,
+                                   const mat& S_chol, const mat& U0, const vec& d,
+                                   const mat& Q, vec& mu1, mat& S1) {
+  // Compute the posterior mean (mu1) and covariance (S1) assuming a multivariate 
+  // normal prior with zero mean and covariance S0.
+  mat D = diagmat(1/(1 + xtx * d));
+  mat U1 = U0 * Q * D * trans(Q);
+  S1 = trans(V_chol) * U1 * V_chol;
+  
+  mu1 = S1 * solve(trimatu(S_chol), solve(trimatl(trans(S_chol)), b));
+  
+  // Compute the log-Bayes factor.
+  // return ldmvnorm(bhat,S0 + S) - ldmvnorm(bhat,S);
+  mat SplusS0_chol = chol(S+S0, "upper");
+  return (chol2ldet(S_chol) - chol2ldet(SplusS0_chol) +
           dot(b, solve(trimatu(S_chol), solve(trimatl(trans(S_chol)), b))) - 
           dot(b, solve(trimatu(SplusS0_chol), solve(trimatl(trans(SplusS0_chol)), b))))/2;
 }
@@ -364,6 +416,23 @@ double ldmvnorm (const arma::vec& x, const arma::mat& S) {
   double d = norm(solve(L,x),2);
   return -(d*d)/2 - sum(log(L.diag()));
 }
+
+// Compute the log determinant from Cholesky decomposed matrix
+double chol2ldet (const mat& R){
+  return log(prod(R.diag()))*2;
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
