@@ -30,10 +30,10 @@ double bayes_mvr_ridge_scaled_X (const vec& b, const mat& S0, const mat& S,
 				 const mat& S_chol, double ldetSplusS0_chol,
 				 double ldet_chol, vec& mu1);
 
-double bayes_mvr_ridge_centered_X (const vec& b, const mat& S0, const mat& S,
-                                   const mat& S1, const mat& SplusS0_chol,
-                                   const mat& S_chol, double ldetSplusS0_chol,
-                                   double ldet_chol, vec& mu1);
+double bayes_mvr_ridge_centered_X (const mat& V, const vec& b, const mat& S, 
+                                   const mat& S0, double xtx, const mat& V_chol,
+                                   const mat& S_chol, const mat& U0, const vec& d,
+                                   const mat& Q, vec& mu1, mat& S1);
 
 double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
                       const vec& w0, const cube& S0, vec& mu1, mat& S1,
@@ -44,6 +44,12 @@ double bayes_mvr_mix_scaled_X (const vec& x, const mat& Y, const vec& w0,
                                const cube& SplusS0_chol, const mat& S_chol,
                                const vec& ldetSplusS0_chol, double ldetS_chol,
                                vec& mu1_mix, mat& S1_mix, vec& w1);
+
+double bayes_mvr_mix_centered_X (const vec& x, const mat& Y, const mat& V,
+                                 const vec& w0, const cube& S0, double xtx, 
+                                 const mat& V_chol, const cube& U0, const mat& d, 
+                                 const cube& Q, vec& mu1_mix, mat& S1_mix, vec& w1);
+
 
 // FUNCTION DEFINITIONS
 // --------------------
@@ -112,6 +118,29 @@ List bayes_mvr_ridge_scaled_X_rcpp (const arma::vec& b, const arma::mat& S0,
                       Named("logbf") = logbf);
 }
 
+// This is mainly used to test the bayes_mvr_ridge_centered_X C++ function
+// defined below. It is called in the same way as bayes_mvr_ridge_simple,
+// e.g.,
+//
+//    out1 <- bayes_mvr_ridge_simple(x,Y,V,S0)
+//    out2 <- bayes_mvr_ridge_centered_X_rcpp(V, b, S, S0, xtx, V_chol, S_chol, U0, d, Q)
+// 
+// [[Rcpp::plugins("cpp11")]]
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::export]]
+List bayes_mvr_ridge_centered_X_rcpp (const mat& V, const vec& b, const mat& S, 
+                                      const mat& S0, double xtx, const mat& V_chol,
+                                      const mat& S_chol, const mat& U0, const vec& d,
+                                      const mat& Q) {
+  unsigned int r = b.n_elem;
+  vec    mu1(r);
+  mat    S1(r,r);
+  double logbf = bayes_mvr_ridge_centered_X(V, b, S, S0, xtx, V_chol, S_chol, U0, d, Q, mu1, S1);
+  return List::create(Named("mu1")   = mu1,
+                      Named("S1")   = S1,
+                      Named("logbf") = logbf);
+}
+
 // This is mainly used to test the bayes_mvr_mix C++ function defined
 // below. It is called in the same way as bayes_mvr_mix_simple, except
 // that input S0 is not a list of matrices, but rather an r x r x k
@@ -176,29 +205,38 @@ List bayes_mvr_mix_scaled_X_rcpp (const arma::vec& x, const arma::mat& Y,
                       Named("logbf") = logbf_mix);
 }
 
-
-// This is mainly used to test the bayes_mvr_ridge_centered_X C++ function
-// defined below. It is called in the same way as bayes_mvr_ridge_simple,
+// This is mainly used to test the bayes_mvr_mix_centered_X C++ function defined
+// below. It is called in the same way as bayes_mvr_mix_simple, except
+// that input S0 is not a list of matrices, but rather an r x r x k
+// "cube" (3-d array), storing the S0 matrices. This cube can easily
+// be obtained from the list using the R function simplify2array,
 // e.g.,
-//
-//    out1 <- bayes_mvr_ridge_simple(x,Y,V,S0)
-//    out2 <- bayes_mvr_ridge_centered_X_rcpp(V, b, S, S0, xtx, V_chol, S_chol, U0, d, Q)
 // 
+//   out1 <- bayes_mvr_mix_simple(x,R,V,w0,S0)
+//   out2 <- bayes_mvr_mix_centered_X_rcpp(X[,1], Y, V, w0, simplify2array(S0), xtx, 
+//                                        V_chol, simplify2array(U0), simplify2array(d),
+//                                        simplify2array(Q))
+//	       
 // [[Rcpp::plugins("cpp11")]]
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
-List bayes_mvr_ridge_centered_X_rcpp (const mat& V, const vec& b, const mat& S, 
-                                      const mat& S0, double xtx, const mat& V_chol,
-                                      const mat& S_chol, const mat& U0, const vec& d,
-                                      const mat& Q) {
-  unsigned int r = b.n_elem;
-  vec    mu1(r);
-  mat    S1(r,r);
-  double logbf = bayes_mvr_ridge_centered_X(V, b, S, S0, xtx, V_chol, S_chol, U0, d, Q, mu1, S1);
-  return List::create(Named("mu1")   = mu1,
-                      Named("S1")   = S1,
-                      Named("logbf") = logbf);
+List bayes_mvr_mix_centered_X_rcpp (const arma::vec& x, const arma::mat& Y, const arma::mat& V,
+                                    const arma::vec& w0, const arma::cube& S0, double xtx, 
+                                    const arma::mat& V_chol, const arma::cube& U0, const arma::mat& d, 
+                                    const arma::cube& Q) {
+  unsigned int r = Y.n_cols;
+  unsigned int k = w0.n_elem;
+  vec mu1_mix(r);
+  mat S1_mix(r,r);
+  vec w1(k);
+  double logbf_mix = bayes_mvr_mix_centered_X(x, Y, V, w0, S0, xtx, V_chol, U0, d, Q, mu1_mix, S1_mix, w1);
+  
+  return List::create(Named("mu1")   = mu1_mix,
+                      Named("S1")    = S1_mix,
+                      Named("w1")    = w1,
+                      Named("logbf") = logbf_mix);
 }
+
 
 
 //Perform the inner loop
@@ -399,6 +437,59 @@ double bayes_mvr_mix_scaled_X (const vec& x, const mat& Y, const vec& w0,
   return u + log(sum(exp(logbfmix - u)));
 }
 
+// Compare this to the R function bayes_mvr_mix_simple.
+double bayes_mvr_mix_centered_X (const vec& x, const mat& Y, const mat& V,
+                                 const vec& w0, const cube& S0, double xtx, 
+                                 const mat& V_chol, const cube& U0, const mat& d, 
+                                 const cube& Q, vec& mu1_mix, mat& S1_mix, vec& w1) {
+  unsigned int k = w0.n_elem;
+  unsigned int r = Y.n_cols;
+  
+  mat mu1mix(r,k);
+  cube S1mix(r,r,k);
+  vec logbfmix(k);
+  vec mu1(r);
+  mat S1(r,r);
+  
+  // Compute the least-squares estimate.
+  vec b = trans(Y)*x/xtx;
+  mat S = V/xtx;
+  
+  // Compute quantities needed for bayes_mvr_ridge_centered_X()
+  mat S_chol = V_chol/sqrt(xtx);
+  
+  // Compute the quantities separately for each mixture component.
+  for (unsigned int i = 0; i < k; i++) {
+    logbfmix(i)    =  bayes_mvr_ridge_centered_X(V, b, S, S0.slice(i), xtx, V_chol, S_chol, 
+                                                  U0.slice(i), d.col(i), Q.slice(i), mu1, S1);
+    
+    mu1mix.col(i)  = mu1;
+    S1mix.slice(i) = S1;
+  }
+  
+  // Compute the posterior assignment probabilities for the latent
+  // indicator variable.
+  logbfmix += log(w0);
+  w1 = logbfmix;
+  softmax(w1);
+  
+  // Compute the posterior mean (mu1) and covariance (S1_mix) of the
+  // regression coefficients.
+  S1_mix.fill(0);
+  mu1_mix.fill(0);
+  for (unsigned int i = 0; i < k; i++) {
+    b    = mu1mix.col(i);
+    mu1_mix += w1(i) * b;
+    S1_mix  += w1(i) * (S1mix.slice(i) + b * trans(b));
+  }
+  S1_mix -= mu1_mix * trans(mu1_mix);
+  
+  // Compute the log-Bayes factor as a linear combination of the
+  // individual Bayes factors for each mixture component.
+  double u = max(logbfmix);
+  return u + log(sum(exp(logbfmix - u)));
+}
+
 // Compute the softmax of x, and return the result in x. Guard against
 // underflow or overflow by adjusting the entries of x so that the
 // largest value is zero.
@@ -421,19 +512,3 @@ double ldmvnorm (const arma::vec& x, const arma::mat& S) {
 double chol2ldet (const mat& R){
   return log(prod(R.diag()))*2;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
