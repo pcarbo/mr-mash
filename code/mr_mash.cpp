@@ -512,3 +512,98 @@ double ldmvnorm (const arma::vec& x, const arma::mat& S) {
 double chol2ldet (const mat& R){
   return log(prod(R.diag()))*2;
 }
+
+
+
+
+
+
+
+
+
+// CODE BELOW NEEDS TO BE FIXED
+
+mat inner_loop_general (const mat& X, mat& rbar, const mat& V,
+                         const vec& w0, const cube& S0, 
+                         const List& precomp_quants, bool standardize,
+                         mat& mu1, cube& S1);
+
+
+//Perform the inner loop
+mat inner_loop_general (const mat& X, mat& rbar, const mat& V,
+                         const vec& w0, const cube& S0, 
+                         const List& precomp_quants, bool standardize,
+                         mat& mu1, cube& S1) {
+  unsigned int n = X.n_rows;
+  unsigned int p = X.n_cols;
+  unsigned int r = rbar.n_cols;
+  unsigned int k = w0.n_elem;
+  vec x(n);
+  vec mu1_j(r);
+  vec mu1_mix(r);
+  mat S1_mix(r,r);
+  vec w1_mix(k);
+  mat w1(p,k);
+  
+  // Repeat for each predictor.
+  for (unsigned int j = 0; j < p; j++) {
+    x = X.col(j);
+    mu1_j = trans(mu1.row(j));
+    
+    // Disregard the ith predictor in the expected residuals.
+    rbar += x * trans(mu1_j);
+    
+    // Update the posterior quantities for the jth
+    // predictor.
+    if(standardize){
+      mat S = as<mat>(precomp_quants["S"]);
+      cube S1 = as<cube>(precomp_quants["S1"]);
+      cube SplusS0_chol = as<cube>(precomp_quants["SplusS0_chol"]);
+      mat S_chol = as<mat>(precomp_quants["S_chol"]);
+      vec ldetSplusS0_chol = as<vec>(precomp_quants["ldetSplusS0_chol"]);
+      double ldetS_chol = as<double>(precomp_quants["ldetS_chol"]);
+      
+      bayes_mvr_mix_scaled_X(x, rbar, w0, S0, S, S1, SplusS0_chol, S_chol, 
+                             ldetSplusS0_chol, ldetS_chol, mu1_mix, S1_mix, w1_mix);
+    } else {
+      vec xtx = as<vec>(precomp_quants["xtx"]);
+      double xtx_j = xtx(j);
+      mat V_chol = as<mat>(precomp_quants["V_chol"]);
+      cube U0 = as<cube>(precomp_quants["U0"]);
+      mat d = as<mat>(precomp_quants["d"]);
+      cube Q = as<cube>(precomp_quants["Q"]);
+      
+      bayes_mvr_mix_centered_X(x, rbar, V, w0, S0, xtx_j, V_chol, U0, d, Q,
+                               mu1_mix, S1_mix, w1_mix);
+    }
+    
+    mu1.row(j) = trans(mu1_mix);
+    S1.slice(j) = S1_mix;
+    w1.row(j) = trans(w1_mix);
+    
+    // Update the expected residuals.
+    rbar -= x * trans(mu1_mix);
+  }
+  
+  return w1;
+}
+
+
+// [[Rcpp::plugins("cpp11")]]
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::export]]
+List inner_loop_general_rcpp (const arma::mat& X, arma::mat& rbar, const arma::mat& V,
+                                    const arma::vec& w0, const arma::cube& S0, 
+                                    const List& precomp_quants, bool standardize, 
+                                    arma::mat& mu1) {
+  unsigned int r = rbar.n_cols;
+  unsigned int p = X.n_cols;
+  unsigned int k = w0.n_elem;
+  cube S1(r,r,p);
+  mat w1 = inner_loop_general(X, rbar, V, w0, S0, precomp_quants, standardize, mu1, S1);
+  
+  return List::create(Named("rbar")  = rbar,
+                      Named("mu1")   = mu1,
+                      Named("S1")    = S1,
+                      Named("w1")    = w1);
+}
