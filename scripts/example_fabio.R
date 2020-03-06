@@ -139,8 +139,8 @@ Y <- scale(Y,scale = FALSE)
 Xc <- scale(X, scale=F)
 
 ###Precompute quantities
-comps_rcpp <- precompute_quants(n=n, X=Xc, V=V, S0=S0, standardize=FALSE, version="Rcpp")
-comps_r <- precompute_quants(n=n, X=Xc, V=V, S0=S0, standardize=FALSE, version="R")
+comps_rcpp <- precompute_quants(n=NULL, X=Xc, V=V, S0=S0, standardize=FALSE, version="Rcpp")
+comps_r <- precompute_quants(n=NULL, X=Xc, V=V, S0=S0, standardize=FALSE, version="R")
 
 ###Fit simple multivariate regression with mixture prior
 out_rcpp <- bayes_mvr_mix_centered_X_rcpp(Xc[,1], Y, V, w0, simplify2array(S0), comps_rcpp$xtx[1], comps_rcpp$V_chol, comps_rcpp$U0, comps_rcpp$d, comps_rcpp$Q)
@@ -171,8 +171,8 @@ print(out1_rcpp$rbar-out1_r$rbar, 16)
 Xs <- scale(X)
 
 ###Precompute quantities
-comps_scaled_rcpp <- precompute_quants(n=n, X=Xc, V=V, S0=S0, standardize=TRUE, version="Rcpp")
-comps_scaled_r <- precompute_quants(n=n, X=Xc, V=V, S0=S0, standardize=TRUE, version="R")
+comps_scaled_rcpp <- precompute_quants(n=n, X=NULL, V=V, S0=S0, standardize=TRUE, version="Rcpp")
+comps_scaled_r <- precompute_quants(n=n, X=NULL, V=V, S0=S0, standardize=TRUE, version="R")
 
 ###Fit simple multivariate regression with mixture prior
 out2_rcpp <- bayes_mvr_mix_scaled_X_rcpp(Xs[,1], Y, w0, simplify2array(S0), comps_scaled_rcpp$S, comps_scaled_rcpp$S1, 
