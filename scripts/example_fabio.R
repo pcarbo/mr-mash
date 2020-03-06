@@ -188,9 +188,9 @@ print(out2_rcpp$logbf-out2_r$logbf, 16)
 
 ###Fit the inner loop
 mu1 <- matrix(0, ncol=ncol(B), nrow=nrow(B))
-rbar <- Y - Xs%*%mu1
-out3_rcpp <- inner_loop_general_rcpp(X=Xs, rbar=rbar, mu1=mu1, V=V, w0=w0, S0=simplify2array(S0), precomp_quants=comps_scaled_rcpp, standardize=TRUE)
-out3_r <- mr.mash.alpha:::inner_loop_general(X=Xs, rbar=rbar, mu=mu1, V=V, Vinv=NULL, w0=w0, S0=S0, precomp_quants=comps_scaled_r, standardize=TRUE, update_V=FALSE)
+rbar_s <- Y - Xs%*%mu1
+out3_rcpp <- inner_loop_general_rcpp(X=Xs, rbar=rbar_s, mu1=mu1, V=V, w0=w0, S0=simplify2array(S0), precomp_quants=comps_scaled_rcpp, standardize=TRUE)
+out3_r <- mr.mash.alpha:::inner_loop_general(X=Xs, rbar=rbar_s, mu=mu1, V=V, Vinv=NULL, w0=w0, S0=S0, precomp_quants=comps_scaled_r, standardize=TRUE, update_V=FALSE)
 print(out3_rcpp$mu1-out3_r$mu1, 16)
 print(out3_rcpp$S1-out3_r$S1, 16)
 print(out3_rcpp$w1-out3_r$w1, 16)
