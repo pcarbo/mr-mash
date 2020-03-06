@@ -3,12 +3,12 @@
 suppressMessages(library(MBSP))
 library(mvtnorm)
 library(Rcpp)
-source("/project2/mstephens/fmorgante/mr-mash/code/misc.R")
-source("/project2/mstephens/fmorgante/mr-mash/code/mr_mash_simple.R")
-sourceCpp("/project2/mstephens/fmorgante/mr-mash/code/mr_mash.cpp",verbose = TRUE)
-# source("../code/misc.R")
-# source("../code/mr_mash_simple.R")
-# sourceCpp("../code/mr_mash.cpp",verbose = TRUE)
+# source("/project2/mstephens/fmorgante/mr-mash/code/misc.R")
+# source("/project2/mstephens/fmorgante/mr-mash/code/mr_mash_simple.R")
+# sourceCpp("/project2/mstephens/fmorgante/mr-mash/code/mr_mash.cpp",verbose = TRUE)
+source("../code/misc.R")
+source("../code/mr_mash_simple.R")
+sourceCpp("../code/mr_mash.cpp",verbose = TRUE)
 
 
 ###Compute log-determinant from Cholesky decomposition
@@ -18,17 +18,7 @@ chol2ldet <- function(R){
   return(logdet)
 }
 
-###Reshape list with precomputed quantities
-simplify2array_listOflists <- function(mylist){
-  for(i in 1:length(mylist)){
-    if(is.list(mylist[[i]])){
-      mylist[[i]] <- simplify2array(mylist[[i]])
-    }
-  }
-  
-  return(mylist)
-}
-
+###Precompute quantities
 precompute_quants <- function(n, X, V, S0, standardize, version){
   if(standardize){
     ###Quantities that don't depend on S0
@@ -153,12 +143,12 @@ comps_rcpp <- precompute_quants(n=n, X=Xc, V=V, S0=S0, standardize=FALSE, versio
 comps_r <- precompute_quants(n=n, X=Xc, V=V, S0=S0, standardize=FALSE, version="R")
 
 ###Fit simple multivariate regression with mixture prior
-# out_rcpp <- bayes_mvr_mix_centered_X_rcpp(Xc[,1], Y, V, w0, simplify2array(S0), xtx[1], R, simplify2array(U0), simplify2array(d), simplify2array(Q))
-# out_r <- mr.mash.alpha:::bayes_mvr_mix_centered_X(Xc[,1], Y, V, w0, S0, xtx[1], R, U0, d, Q)
-# print(drop(out_rcpp$mu1)-out_r$mu1, 16)
-# print(out_rcpp$S1-out_r$S1, 16)
-# print(drop(out_rcpp$w1)-out_r$w1, 16)
-# print(out_rcpp$logbf-out_r$logbf, 16)
+out_rcpp <- bayes_mvr_mix_centered_X_rcpp(Xc[,1], Y, V, w0, simplify2array(S0), comps_rcpp$xtx[1], comps_rcpp$V_chol, comps_rcpp$U0, comps_rcpp$d, comps_rcpp$Q)
+out_r <- mr.mash.alpha:::bayes_mvr_mix_centered_X(Xc[,1], Y, V, w0, S0, comps_r$xtx[1], comps_r$V_chol, comps_r$U0, comps_r$d, comps_r$Q)
+print(drop(out_rcpp$mu1)-out_r$mu1, 16)
+print(out_rcpp$S1-out_r$S1, 16)
+print(drop(out_rcpp$w1)-out_r$w1, 16)
+print(out_rcpp$logbf-out_r$logbf, 16)
 ##These are close to 0
 
 ###Fit the inner loop
@@ -185,12 +175,15 @@ comps_scaled_rcpp <- precompute_quants(n=n, X=Xc, V=V, S0=S0, standardize=TRUE, 
 comps_scaled_r <- precompute_quants(n=n, X=Xc, V=V, S0=S0, standardize=TRUE, version="R")
 
 ###Fit simple multivariate regression with mixture prior
-# out2_rcpp <- bayes_mvr_mix_scaled_X_rcpp(Xs[,1], Y, w0, simplify2array(S0), S, simplify2array(S1), simplify2array(SplusS0_chol), S_chol, ldetSplusS0_chol, ldetS_chol)
-# out2_r <- mr.mash.alpha:::bayes_mvr_mix_scaled_X(Xs[,1], Y, w0, S0, S, S1, SplusS0_chol, S_chol, ldetSplusS0_chol, ldetS_chol)
-# print(drop(out2_rcpp$mu1)-out2_r$mu1, 16)
-# print(out2_rcpp$S1-out2_r$S1, 16)
-# print(drop(out2_rcpp$w1)-out2_r$w1, 16)
-# print(out2_rcpp$logbf-out2_r$logbf, 16)
+out2_rcpp <- bayes_mvr_mix_scaled_X_rcpp(Xs[,1], Y, w0, simplify2array(S0), comps_scaled_rcpp$S, comps_scaled_rcpp$S1, 
+                                         comps_scaled_rcpp$SplusS0_chol, comps_scaled_rcpp$S_chol, comps_scaled_rcpp$ldetSplusS0_chol, 
+                                         comps_scaled_rcpp$ldetS_chol)
+out2_r <- mr.mash.alpha:::bayes_mvr_mix_scaled_X(Xs[,1], Y, w0, S0, comps_scaled_r$S, comps_scaled_r$S1, comps_scaled_r$SplusS0_chol, comps_scaled_r$S_chol, 
+                                                 comps_scaled_r$ldetSplusS0_chol, comps_scaled_r$ldetS_chol)
+print(drop(out2_rcpp$mu1)-out2_r$mu1, 16)
+print(out2_rcpp$S1-out2_r$S1, 16)
+print(drop(out2_rcpp$w1)-out2_r$w1, 16)
+print(out2_rcpp$logbf-out2_r$logbf, 16)
 ##These are close to 0
 
 ###Fit the inner loop
