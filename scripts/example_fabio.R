@@ -82,7 +82,7 @@ print(range(out_rcpp$logbf - out_r$logbf))
 ###Fit the inner loop
 mu1  <- matrix(0, ncol=ncol(B), nrow=nrow(B))
 rbar <- Y - Xc%*%mu1
-out1_rcpp <- inner_loop_general_rcpp(X=Xc, rbar=rbar, mu1=mu1, V=V, w0=w0,
+out1_rcpp <- inner_loop_general_rcpp(X=Xc, Rbar=rbar, mu1=mu1, V=V, w0=w0,
                S0=simplify2array(S0), precomp_quants=comps_rcpp,
                standardize=FALSE)
 out1_r <- mr.mash.alpha:::inner_loop_general(X=Xc, rbar=rbar, mu=mu1, V=V,
