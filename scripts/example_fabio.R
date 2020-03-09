@@ -3,9 +3,7 @@
 suppressMessages(library(MBSP))
 library(mvtnorm)
 library(Rcpp)
-# source("/project2/mstephens/fmorgante/mr-mash/code/misc.R")
-# source("/project2/mstephens/fmorgante/mr-mash/code/mr_mash_simple.R")
-# sourceCpp("/project2/mstephens/fmorgante/mr-mash/code/mr_mash.cpp",verbose = TRUE)
+devtools::load_all("~/git/mr.mash.alpha")
 source("../code/misc.R")
 source("../code/mr_mash_simple.R")
 sourceCpp("../code/mr_mash.cpp",verbose = TRUE)
@@ -62,29 +60,40 @@ Y <- scale(Y,scale = FALSE)
 Xc <- scale(X, scale=F)
 
 ###Precompute quantities
-comps_rcpp <- mr.mash.alpha:::precompute_quants(n=NULL, X=Xc, V=V, S0=S0, standardize=FALSE, version="Rcpp")
-comps_r <- mr.mash.alpha:::precompute_quants(n=NULL, X=Xc, V=V, S0=S0, standardize=FALSE, version="R")
+comps_rcpp <-
+  mr.mash.alpha:::precompute_quants(n=NULL, X=Xc, V=V, S0=S0,
+                                    standardize=FALSE, version="Rcpp")
+comps_r <-
+    mr.mash.alpha:::precompute_quants(n=NULL, X=Xc, V=V, S0=S0,
+                                      standardize=FALSE, version="R")
 
 ###Fit simple multivariate regression with mixture prior
-out_rcpp <- bayes_mvr_mix_centered_X_rcpp(Xc[,1], Y, V, w0, simplify2array(S0), comps_rcpp$xtx[1], comps_rcpp$V_chol, comps_rcpp$U0, comps_rcpp$d, comps_rcpp$Q)
-out_r <- mr.mash.alpha:::bayes_mvr_mix_centered_X(Xc[,1], Y, V, w0, S0, comps_r$xtx[1], comps_r$V_chol, comps_r$U0, comps_r$d, comps_r$Q)
-print(drop(out_rcpp$mu1)-out_r$mu1, 16)
-print(out_rcpp$S1-out_r$S1, 16)
-print(drop(out_rcpp$w1)-out_r$w1, 16)
-print(out_rcpp$logbf-out_r$logbf, 16)
-##These are close to 0
+out_rcpp <-
+  bayes_mvr_mix_centered_X_rcpp(Xc[,1], Y, V, w0, simplify2array(S0),
+                                comps_rcpp$xtx[1], comps_rcpp$V_chol,
+                                comps_rcpp$U0, comps_rcpp$d, comps_rcpp$Q)
+out_r <- mr.mash.alpha:::bayes_mvr_mix_centered_X(Xc[,1], Y, V, w0, S0,
+           comps_r$xtx[1], comps_r$V_chol, comps_r$U0, comps_r$d, comps_r$Q)
+print(range(drop(out_rcpp$mu1) - out_r$mu1))
+print(range(out_rcpp$S1 - out_r$S1))
+print(range(drop(out_rcpp$w1) - out_r$w1))
+print(range(out_rcpp$logbf - out_r$logbf))
 
 ###Fit the inner loop
-mu1 <- matrix(0, ncol=ncol(B), nrow=nrow(B))
+mu1  <- matrix(0, ncol=ncol(B), nrow=nrow(B))
 rbar <- Y - Xc%*%mu1
-out1_rcpp <- inner_loop_general_rcpp(X=Xc, rbar=rbar, mu1=mu1, V=V, w0=w0, S0=simplify2array(S0), precomp_quants=comps_rcpp, standardize=FALSE)
-out1_r <- mr.mash.alpha:::inner_loop_general(X=Xc, rbar=rbar, mu=mu1, V=V, Vinv=NULL, w0=w0, S0=S0, precomp_quants=comps_r, standardize=FALSE, update_V=FALSE)
-print(out1_rcpp$mu1-out1_r$mu1, 16)
-print(out1_rcpp$S1-out1_r$S1, 16)
-print(out1_rcpp$w1-out1_r$w1, 16)
-print(out1_rcpp$rbar-out1_r$rbar, 16)
-##These are close to 0
+out1_rcpp <- inner_loop_general_rcpp(X=Xc, rbar=rbar, mu1=mu1, V=V, w0=w0,
+               S0=simplify2array(S0), precomp_quants=comps_rcpp,
+               standardize=FALSE)
+out1_r <- mr.mash.alpha:::inner_loop_general(X=Xc, rbar=rbar, mu=mu1, V=V,
+            Vinv=NULL, w0=w0, S0=S0, precomp_quants=comps_r,
+            standardize=FALSE, update_V=FALSE)
+print(range(out1_rcpp$mu1 - out1_r$mu1))
+print(range(out1_rcpp$S1 - out1_r$S1))
+print(range(out1_rcpp$w1-out1_r$w1))
+print(range(out1_rcpp$rbar-out1_r$rbar))
 
+stop()
 
 #################
 ####Scaled  X####
