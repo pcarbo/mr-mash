@@ -25,6 +25,9 @@ void softmax (vec& x);
 
 double ldmvnorm (const vec& x, const mat& S);
 
+double ldmvnormdiff (const vec& x, const mat& S_chol,
+		     const mat& SplusS0_chol);
+
 double chol2ldet (const mat& R);
 
 void inner_loop (const mat& X, mat& R, const mat& V,
@@ -310,13 +313,15 @@ double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
   
   // Compute the posterior mean (mu1) and covariance (S1) assumig63ng a
   // multivariate normal prior with zero mean and covariance S0.
-  // mat I(r,r,fill::eye);
-  // S1  = S0 * inv(I + solve(S,S0));
+  // This is equivalent C++ code (simpler, but slower):
+  // 
+  //   mat I(r,r,fill::eye)
+  //   S1  = S0 * inv(I + solve(S,S0))
+  //   mu1 = S1 * solve(S,bhat)
+  //
   mat SplusS0_chol = chol(S + S0, "upper");
-  S1 = S0 * backsolve(SplusS0_chol, forwardsolve(SplusS0_chol, S));
-  
-  // mu1 = S1 * solve(S,bhat);
-  mat S_chol = chol(S, "upper");
+  mat S_chol       = chol(S, "upper");
+  S1  = S0 * backsolve(SplusS0_chol, forwardsolve(SplusS0_chol, S));
   mu1 = S1 * backsolve(S_chol, forwardsolve(S_chol, bhat));
   
   // Compute the log-Bayes factor.
@@ -333,12 +338,11 @@ double bayes_mvr_ridge_scaled_X (const vec& b, const mat& S0, const mat& S,
   // normal prior with zero mean and covariance S0.
   mu1 = S1 * backsolve(S_chol, forwardsolve(S_chol, b));
   
-  // Compute the log-Bayes factor.
-  // return ldmvnorm(bhat,S0 + S) - ldmvnorm(bhat,S);
-  return (ldetS_chol -
-	  ldetSplusS0_chol +
-          dot(b, backsolve(S_chol, forwardsolve(S_chol, b))) - 
-          dot(b, backsolve(SplusS0_chol, forwardsolve(SplusS0_chol, b))))/2;
+  // Compute the log-Bayes factor. This should give the same result as:
+  //
+  //   ldmvnorm(bhat,S0 + S) - ldmvnorm(bhat,S)
+  //
+  return ldmvnormdiff(b,S_chol,SplusS0_chol);
 }
 
 // Compare this to the R function bayes_mvr_ridge_simple.
@@ -352,17 +356,12 @@ double bayes_mvr_ridge_centered_X (const mat& V, const vec& b, const mat& S,
   // multivariate normal prior with zero mean and covariance S0.
   mat D  = diagmat(1/(1 + xtx * d));
   mat U1 = U0 * Q * D * trans(Q);
-  S1 = trans(V_chol) * U1 * V_chol;
-  
+  S1  = trans(V_chol) * U1 * V_chol;
   mu1 = S1 * backsolve(S_chol, forwardsolve(S_chol, b));
   
   // Compute the log-Bayes factor.
-  // return ldmvnorm(bhat,S0 + S) - ldmvnorm(bhat,S);
-  mat SplusS0_chol = chol(S+S0, "upper");
-  return (chol2ldet(S_chol) -
-	  chol2ldet(SplusS0_chol) +
-          dot(b, backsolve(S_chol, forwardsolve(S_chol, b))) - 
-          dot(b, backsolve(SplusS0_chol, forwardsolve(SplusS0_chol, b))))/2;
+  // return ldmvnorm(bhat,S0 + S) - ldmvnorm(bhat,S)
+  return ldmvnormdiff(b,S_chol,chol(S + S0, "upper"));
 }
 
 // Compare this to the R function bayes_mvr_mix_simple.
@@ -521,15 +520,30 @@ void softmax (vec& x) {
 // Compute the log-probability density of the multivariate normal
 // distribution with zero mean and covariance matrix S, omitting terms
 // that do not depend on x or S.
-double ldmvnorm (const arma::vec& x, const arma::mat& S) {
+double ldmvnorm (const vec& x, const mat& S) {
   mat    L = chol(S,"lower");
   double d = norm(solve(L,x),2);
   return -(d*d)/2 - sum(log(L.diag()));
 }
 
+// Compute the difference of two multivariate normal log-densities,
+//
+//   ldmvnorm(x,S0 + S) - ldmvnorm(x,S)
+//
+// where S_chol is the right-hand Cholesky factor of S, and
+// SplusS0_chol is the right-hand Cholesky factor of S + S0 (also an
+// upper triangular matrix).
+double ldmvnormdiff (const vec& x, const mat& S_chol,
+		     const mat& SplusS0_chol) {
+  return (chol2ldet(S_chol) -
+	  chol2ldet(SplusS0_chol) +
+          dot(x, backsolve(S_chol, forwardsolve(S_chol, x))) - 
+          dot(x, backsolve(SplusS0_chol, forwardsolve(SplusS0_chol, x))))/2;
+}
+
 // Compute the log determinant from Cholesky decomposed matrix
-double chol2ldet (const mat& R){
-  return log(prod(R.diag()))*2;
+double chol2ldet (const mat& R) {
+  return 2*sum(log(R.diag()));
 }
 
 // PETER TO DEAL WITH LIST
