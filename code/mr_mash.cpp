@@ -16,11 +16,20 @@ struct mr_mash_precomputed_quantities {
   const mat  S_chol;
   const cube S1;
   const cube SplusS0_chol;
+  const mat  V_chol;
+  const cube U0;
+  const mat  d;
+  const cube Q;
+  const vec  xtx;
 
   // This is used to create a mr_mash_precomputed_quantities object.
   mr_mash_precomputed_quantities (const mat& S, const mat& S_chol,
-				  const cube& S1, const cube& SplusS0_chol) :
-    S(S), S_chol(S_chol), S1(S1), SplusS0_chol(SplusS0_chol) { };
+				  const cube& S1, const cube& SplusS0_chol,
+				  const mat& V_chol, const cube& U0,
+				  const mat& d, const cube& Q,
+				  const vec& xtx) :
+    S(S), S_chol(S_chol), S1(S1), SplusS0_chol(SplusS0_chol),
+    V_chol(V_chol), U0(U0), d(d), Q(Q), xtx(xtx) { };
 };
 
 // INLINE FUNCTION DEFINITIONS
@@ -45,8 +54,8 @@ void inner_loop (const mat& X, mat& R, const mat& V, const vec& w0,
 
 void inner_loop_general (const mat& X, mat& Rbar, mat& mu1, const mat& V,
 			 const vec& w0, const cube& S0,
-			 const List& precomp_quants, bool standardize,
-			 cube& S1, mat& w1);
+			 const mr_mash_precomputed_quantities& precomp_quants,
+			 bool standardize, cube& S1, mat& w1);
 
 double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
                         const mat& S0, vec& bhat, mat& S, vec& mu1,
@@ -54,8 +63,7 @@ double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
 
 double bayes_mvr_ridge_scaled_X (const vec& b, const mat& S0, const mat& S,
 				 const mat& S1, const mat& SplusS0_chol,
-				 const mat& S_chol, double ldetSplusS0_chol,
-				 double ldet_chol, vec& mu1);
+				 const mat& S_chol, vec& mu1);
 
 double bayes_mvr_ridge_centered_X (const mat& V, const vec& b, const mat& S, 
                                    const mat& S0, double xtx,
@@ -70,7 +78,6 @@ double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
 double bayes_mvr_mix_scaled_X (const vec& x, const mat& Y, const vec& w0,
                                const cube& S0, const mat& S, const cube& S1,
                                const cube& SplusS0_chol, const mat& S_chol,
-                               const vec& ldetSplusS0_chol, double ldetS_chol,
                                vec& mu1_mix, mat& S1_mix, vec& w1);
 
 double bayes_mvr_mix_centered_X (const vec& x, const mat& Y, const mat& V,
@@ -112,7 +119,8 @@ arma::mat mr_mash_update_rcpp (const arma::mat& X, const arma::mat& Y,
 // [[Rcpp::export]]
 List inner_loop_general_rcpp (const arma::mat& X, arma::mat& Rbar, mat& mu1,
 			      const arma::mat& V, const arma::vec& w0,
-			      const arma::cube& S0, const List& precomp_quants,
+			      const arma::cube& S0,
+			      const List& precomp_quants_list,
 			      bool standardize) {
   unsigned int r = Rbar.n_cols;
   unsigned int p = X.n_cols;
@@ -121,6 +129,16 @@ List inner_loop_general_rcpp (const arma::mat& X, arma::mat& Rbar, mat& mu1,
   mat  w1(p,k);
   mat  mu1_new  = mu1;
   mat  Rbar_new = Rbar;
+  mr_mash_precomputed_quantities precomp_quants
+    (as<mat>(precomp_quants_list["S"]),
+     as<mat>(precomp_quants_list["S_chol"]),
+     as<cube>(precomp_quants_list["S1"]),
+     as<cube>(precomp_quants_list["SplusS0_chol"]),
+     as<mat>(precomp_quants_list["V_chol"]),
+     as<cube>(precomp_quants_list["U0"]),
+     as<mat>(precomp_quants_list["d"]),
+     as<cube>(precomp_quants_list["Q"]),
+     as<vec>(precomp_quants_list["xtx"]));
   inner_loop_general(X, Rbar_new, mu1_new, V, w0, S0, precomp_quants,
 		     standardize, S1, w1);
   return List::create(Named("rbar") = Rbar_new,
@@ -174,7 +192,7 @@ List bayes_mvr_ridge_scaled_X_rcpp (const arma::vec& b, const arma::mat& S0,
   unsigned int r = b.n_elem;
   vec    mu1(r);
   double logbf = bayes_mvr_ridge_scaled_X(b, S0, S, S1, SplusS0_chol, S_chol,
-					  ldetSplusS0_chol, ldet_chol, mu1);
+					  mu1);
   return List::create(Named("mu1")   = mu1,
                       Named("logbf") = logbf);
 }
@@ -259,8 +277,7 @@ List bayes_mvr_mix_scaled_X_rcpp (const arma::vec& x, const arma::mat& Y,
   mat S1_mix(r,r);
   vec w1(k);
   double logbf_mix = bayes_mvr_mix_scaled_X(x,Y,w0,S0,S,S1,SplusS0_chol,
-					    S_chol, ldetSplusS0_chol,
-					    ldetS_chol, mu1_mix, S1_mix, w1);
+					    S_chol, mu1_mix, S1_mix, w1);
   return List::create(Named("mu1")   = mu1_mix,
                       Named("S1")    = S1_mix,
                       Named("w1")    = w1,
@@ -374,8 +391,7 @@ double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
 // Compare this to the R function bayes_mvr_ridge_simple.
 double bayes_mvr_ridge_scaled_X (const vec& b, const mat& S0, const mat& S,
 				 const mat& S1, const mat& SplusS0_chol,
-				 const mat& S_chol, double ldetSplusS0_chol,
-				 double ldetS_chol, vec& mu1) {
+				 const mat& S_chol, vec& mu1) {
   
   // Compute the posterior mean (mu1) aassuming a multivariate 
   // normal prior with zero mean and covariance S0.
@@ -453,7 +469,6 @@ double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
 double bayes_mvr_mix_scaled_X (const vec& x, const mat& Y, const vec& w0,
                                const cube& S0, const mat& S, const cube& S1,
                                const cube& SplusS0_chol, const mat& S_chol,
-                               const vec& ldetSplusS0_chol, double ldetS_chol,
                                vec& mu1_mix, mat& S1_mix, vec& w1) {
   unsigned int k = w0.n_elem;
   unsigned int r = Y.n_cols;
@@ -469,9 +484,7 @@ double bayes_mvr_mix_scaled_X (const vec& x, const mat& Y, const vec& w0,
   // Compute the quantities separately for each mixture component.
   for (unsigned int i = 0; i < k; i++) {
     logbfmix(i) = bayes_mvr_ridge_scaled_X(b, S0.slice(i), S, S1.slice(i),
-					   SplusS0_chol.slice(i), S_chol, 
-					   ldetSplusS0_chol(i), ldetS_chol,
-					   mu1);
+					   SplusS0_chol.slice(i), S_chol, mu1);
     mu1mix.col(i) = mu1;
   }
   
@@ -593,8 +606,8 @@ double chol2ldet (const mat& R) {
 //Perform the inner loop
 void inner_loop_general (const mat& X, mat& Rbar, mat& mu1, const mat& V,
 			 const vec& w0, const cube& S0,
-			 const List& precomp_quants, bool standardize,
-			 cube& S1, mat& w1) {
+			 const mr_mash_precomputed_quantities& precomp_quants,
+			 bool standardize, cube& S1, mat& w1) {
   unsigned int n = X.n_rows;
   unsigned int p = X.n_cols;
   unsigned int r = Rbar.n_cols;
@@ -616,26 +629,15 @@ void inner_loop_general (const mat& X, mat& Rbar, mat& mu1, const mat& V,
     
     // Update the posterior quantities for the jth
     // predictor.
-    if(standardize){
-      mat S                = as<mat>(precomp_quants["S"]);
-      cube S1              = as<cube>(precomp_quants["S1"]);
-      cube SplusS0_chol    = as<cube>(precomp_quants["SplusS0_chol"]);
-      mat S_chol           = as<mat>(precomp_quants["S_chol"]);
-      vec ldetSplusS0_chol = as<vec>(precomp_quants["ldetSplusS0_chol"]);
-      double ldetS_chol    = as<double>(precomp_quants["ldetS_chol"]);
-      
-      bayes_mvr_mix_scaled_X(x, Rbar_j, w0, S0, S, S1, SplusS0_chol, S_chol, 
-                             ldetSplusS0_chol, ldetS_chol, mu1_mix, S1_mix,
-			     w1_mix);
-    } else {
-      vec xtx      = as<vec>(precomp_quants["xtx"]);
-      double xtx_j = xtx(j);
-      mat V_chol   = as<mat>(precomp_quants["V_chol"]);
-      cube U0      = as<cube>(precomp_quants["U0"]);
-      mat d        = as<mat>(precomp_quants["d"]);
-      cube Q       = as<cube>(precomp_quants["Q"]);
-      
-      bayes_mvr_mix_centered_X(x, Rbar_j, V, w0, S0, xtx_j, V_chol, U0, d, Q,
+    if (standardize)
+      bayes_mvr_mix_scaled_X(x, Rbar_j, w0, S0, precomp_quants.S,
+			     precomp_quants.S1, precomp_quants.SplusS0_chol,
+			     precomp_quants.S_chol, mu1_mix, S1_mix, w1_mix);
+    else {
+      double xtx_j = precomp_quants.xtx(j);
+      bayes_mvr_mix_centered_X(x, Rbar_j, V, w0, S0, xtx_j,
+			       precomp_quants.V_chol, precomp_quants.U0,
+			       precomp_quants.d, precomp_quants.Q,
                                mu1_mix, S1_mix, w1_mix);
     }
     
