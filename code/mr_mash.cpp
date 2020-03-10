@@ -7,6 +7,22 @@
 using namespace Rcpp;
 using namespace arma;
 
+// TYPE DEFINITIONS
+// ----------------
+// A list of precomputed quantities that are invariant to any updates
+// to the mr-mash model parameters.
+struct mr_mash_precomputed_quantities {
+  const mat  S;
+  const mat  S_chol;
+  const cube S1;
+  const cube SplusS0_chol;
+
+  // This is used to create a mr_mash_precomputed_quantities object.
+  mr_mash_precomputed_quantities (const mat& S, const mat& S_chol,
+				  const cube& S1, const cube& SplusS0_chol) :
+    S(S), S_chol(S_chol), S1(S1), SplusS0_chol(SplusS0_chol) { };
+};
+
 // INLINE FUNCTION DEFINITIONS
 // ---------------------------
 // Solve for x in U'x = b by forward substitution.
