@@ -107,3 +107,30 @@ bayes_mvr_mix_simple <- function (x, Y, V, w0, S0) {
               w1    = w1,
               logbf = logbf))
 }
+
+# TO DO: Explain here what this function does, and how to use it.
+bayes_mvr_ridge_fit <- function (x, Y, V, S0, s0 = 1, numiter = 10) {
+
+  # Record the Bayes factor at each iteration of EM.
+  logbf <- rep(0,numiter)
+    
+  # Iterate the EM updates.
+  for (i in 1:numiter) {
+
+    # E-step
+    # TO DO.
+      
+    # M-step
+    # TO DO.
+      
+    # Compute the log-Bayes factor.
+    logbf <- bayes_mvr_ridge_simple(x,Y,V,s0*S0)
+  }
+
+  # Return the model parameters (V, S0, s0) and the log-Bayes factor
+  # at each iteration of EM.
+  return(list(V     = V,
+              S0    = S0,
+              s0    = s0,
+              logbf = logbf))
+}
