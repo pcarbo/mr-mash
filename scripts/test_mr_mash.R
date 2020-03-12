@@ -3,6 +3,7 @@ suppressMessages(library(MBSP))
 library(mvtnorm)
 library(Rcpp)
 source("../code/misc.R")
+source("../code/bayes_mvr.R")
 source("../code/mr_mash_simple.R")
 sourceCpp("../code/mr_mash.cpp",verbose = TRUE)
 
