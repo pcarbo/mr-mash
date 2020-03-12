@@ -30,7 +30,7 @@ S0 <- list(k1 = rbind(c(4,2),
            k3 = rbind(c(6,3.5),
                       c(3.5,4)),
            k4 = rbind(c(5,0),
-                      c(0,0)))
+                      c(0,0.1)))
 
 # The mixture weights in the mixture-of-normals prior on the
 # regression coefficients.
@@ -39,7 +39,7 @@ k  <- length(w0)
 
 # SIMULATE DATA
 # -------------
-set.seed(1)
+set.seed(4)
 x <- rnorm(n)
 x <- x - mean(x)
 
@@ -51,14 +51,20 @@ Y <- scale(Y,scale = FALSE)
 # ---------------------------------------
 # Compute the maximum-likelihood estimate (MLE) of the prior variance
 # (sigma0) for the basic multivariate regression model.
-fit <- bayes_mvr_ridge_fit(x,Y,V,S0$k1,numiter = 5)
-plot(1:5,max(fit$logbf) - fit$logbf + 1e-8,type = "l",log = "y",
+fit1 <- bayes_mvr_ridge_fit(x,Y,V,S0$k1,numiter = 5)
+plot(1:5,max(fit1$logbf) - fit1$logbf + 1e-8,type = "l",log = "y",
      col = "dodgerblue",lwd = 2,xlab = "iteration",
      ylab = "distance to best logBF")
-                                        
+
 # FIT MODEL WITH MIXTURE PRIOR
 # ----------------------------
 # Compute the maximum-likelihood estimate (MLE) of the prior variance
 # (sigma0) for the multivariate regression model with a
 # mixture-of-normals prior on the regression coefficients.
-# TO DO.
+fit2 <- bayes_mvr_mix_fit(x,Y,V,w0,S0,numiter = 8)
+plot(1:8,max(fit2$logbf) - fit2$logbf + 1e-8,type = "l",log = "y",
+     col = "magenta",lwd = 2,xlab = "iteration",
+     ylab = "distance to best logBF")
+
+fit2 <- bayes_mvr_mix_fit(x,Y[,1],V[1],w0,lapply(S0,function (x) x[1,1]),
+                          numiter = 8)

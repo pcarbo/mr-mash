@@ -121,27 +121,81 @@ bayes_mvr_mix_simple <- function (x, Y, V, w0, S0) {
 # definite.
 bayes_mvr_ridge_fit <- function (x, Y, V, S0, sigma0 = 1, numiter = 10) {
 
-  # Record the Bayes factor at each iteration of EM.
+  # Record the Bayes factor at each EM iteration.
   logbf <- rep(0,numiter)
     
   # Iterate the EM updates.
   for (i in 1:numiter) {
 
-    # Compute the posterior mean and covariance of the regression
-    # coefficients. This is the E-step.
+    # Compute the log-Bayes factor and U = E[b'*P0*b], the second
+    # moment of the regression coefficients, b, scaled by the prior
+    # precision matrix, P0 (this is the inverse of the prior
+    # covariance, S0). This is the E-step.
     out      <- bayes_mvr_ridge_simple(x,Y,V,sigma0*S0)
     mu1      <- out$mu1
     S1       <- out$S1
+    U        <- solve(S0,S1 + tcrossprod(mu1))
     logbf[i] <- out$logbf
 
     # Compute the M-step update of the prior variance.
-    sigma0 <- sum(solve(S0,S1 + outer(mu1,mu1)))
+    sigma0 <- mean(diag(U))
   }
 
   # Return the model parameters (V, S0, sigma0) and the log-Bayes factor
-  # at each iteration of EM.
+  # at each EM iteration.
   return(list(V      = V,
               S0     = S0,
               sigma0 = sigma0,
               logbf  = logbf))
+}
+
+# Run several EM updates to compute a maximum-likelihood estimate
+# (MLE) of the prior variance in a Bayesian multivariate regression
+# with the regression coefficients assigned a simple mixture-of-normals
+# prior. This is the same as bayes_mvr_ridge_fit, except that the
+# normal prior is replaced with a mixture-of-normals prior.
+bayes_mvr_mix_fit <- function (x, Y, V, w0, S0, sigma0 = 1, numiter = 10) {
+
+  # Make sure Y is a matrix.
+  Y  <- as.matrix(Y)
+
+  # Get the dimension of the response (r) and the number of mixture
+  # components (k).
+  r <- ncol(Y)
+  k <- length(w0)
+
+  # Record the Bayes factor at each EM iteration.
+  logbf <- rep(0,numiter)
+    
+  # Iterate the EM updates.
+  for (i in 1:numiter) {
+
+    # Compute the log-Bayes factor and U = E[b'*P0*b], the second
+    # moment of the regression coefficients, b, scaled by the prior
+    # precision matrix, P0 (this is the inverse of the prior
+    # covariance, S0). This is the E-step.
+    out <- bayes_mvr_mix_simple(x,Y,V,w0,lapply(S0,function (x) sigma0*x))
+    logbf[i] <- out$logbf
+    U        <- matrix(0,r,r)
+    w1       <- out$w1
+    for (i in 1:k) {
+      out <- bayes_mvr_ridge_simple(x,Y,V,sigma0*S0[[i]])
+      mu1 <- out$mu1
+      S1  <- out$S1
+      Ui  <- solve(S0[[i]],S1 + tcrossprod(mu1))
+      U   <- U + w1[i]*Ui
+    }
+    
+    # Compute the M-step update of the prior variance.
+    sigma0 <- mean(diag(U))
+  }
+
+  # Return the model parameters (V, w0, S0, sigma0) and the log-Bayes
+  # factor achieved at each EM iteration.
+  return(list(V      = V,
+              w0     = w0,
+              S0     = S0,
+              sigma0 = sigma0,
+              logbf  = logbf))
+
 }
