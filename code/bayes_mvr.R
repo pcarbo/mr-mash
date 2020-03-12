@@ -108,8 +108,18 @@ bayes_mvr_mix_simple <- function (x, Y, V, w0, S0) {
               logbf = logbf))
 }
 
-# TO DO: Explain here what this function does, and how to use it.
-bayes_mvr_ridge_fit <- function (x, Y, V, S0, s0 = 1, numiter = 10) {
+# Compute a maximum-likelihood estimate (MLE) of the prior variance in
+# the basic Bayesian multivariate regression model in which the prior
+# covariance matrix is sigma0 * S0:
+#
+#   Y = xb' + E
+#   E ~ MN(0,I,V)
+#   b ~ N(0,sigma0*S0)
+#
+# A simple EM algorithm is used to compute the MLE. Note that this
+# particular implementation requires that S0 be symmetric positive
+# definite.
+bayes_mvr_ridge_fit <- function (x, Y, V, S0, sigma0 = 1, numiter = 10) {
 
   # Record the Bayes factor at each iteration of EM.
   logbf <- rep(0,numiter)
@@ -117,20 +127,21 @@ bayes_mvr_ridge_fit <- function (x, Y, V, S0, s0 = 1, numiter = 10) {
   # Iterate the EM updates.
   for (i in 1:numiter) {
 
-    # E-step
-    # TO DO.
-      
-    # M-step
-    # TO DO.
-      
-    # Compute the log-Bayes factor.
-    logbf <- bayes_mvr_ridge_simple(x,Y,V,s0*S0)
+    # Compute the posterior mean and covariance of the regression
+    # coefficients. This is the E-step.
+    out      <- bayes_mvr_ridge_simple(x,Y,V,sigma0*S0)
+    mu1      <- out$mu1
+    S1       <- out$S1
+    logbf[i] <- out$logbf
+
+    # Compute the M-step update of the prior variance.
+    sigma0 <- sum(solve(S0,S1 + outer(mu1,mu1)))
   }
 
-  # Return the model parameters (V, S0, s0) and the log-Bayes factor
+  # Return the model parameters (V, S0, sigma0) and the log-Bayes factor
   # at each iteration of EM.
-  return(list(V     = V,
-              S0    = S0,
-              s0    = s0,
-              logbf = logbf))
+  return(list(V      = V,
+              S0     = S0,
+              sigma0 = sigma0,
+              logbf  = logbf))
 }

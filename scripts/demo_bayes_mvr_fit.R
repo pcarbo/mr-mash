@@ -1,4 +1,6 @@
-# TO DO: Explain here what this script does, and how to use it.
+# This script illustrates the use of EM to compute the
+# maximum-likelihood estimate (MLE) of the prior variance (sigma0) in
+# Bayesian multivariate regression.
 suppressMessages(library(MBSP))
 library(mvtnorm)
 library(Rcpp)
@@ -18,10 +20,17 @@ r <- nrow(V)
 # True effects used to simulate the data.
 b <- c(-2,0)
 
-# Normal prior on the regression
-# coefficient.
-S0 <- rbind(c(4,2),
-            c(2,4))
+# Covariances in the mixture-of-normals prior on the regression
+# coefficients. The first covariance matrix is used for the basic
+# multivariate regression.
+S0 <- list(k1 = rbind(c(4,2),
+                      c(2,4)),
+           k2 = rbind(c(3,0),
+                      c(0,3)),
+           k3 = rbind(c(6,3.5),
+                      c(3.5,4)),
+           k4 = rbind(c(5,0),
+                      c(0,0)))
 
 # The mixture weights in the mixture-of-normals prior on the
 # regression coefficients.
@@ -34,14 +43,22 @@ set.seed(1)
 x <- rnorm(n)
 x <- x - mean(x)
 
-# Simulate Y ~ MN(x*b',I,V). Note that matrix.normal from the MBSP
-# package appears to be much faster than rmatrixnorm from the
-# MixMatrix package.
+# Simulate Y ~ MN(x*b',I,V).
 Y <- matrix.normal(outer(x,b),diag(n),V)
 Y <- scale(Y,scale = FALSE)
 
-# FIT PRIOR VARIANCE (s0)
-# -----------------------
-fit <- bayes_mvr_ridge_fit(x,Y,V,S0,numiter = 10)
-    
-# TO DO: Test bayes_mvr_ridge_fit in univariate case (when r = 1).
+# FIT BASIC MULTIVARIATE REGRESSION MODEL
+# ---------------------------------------
+# Compute the maximum-likelihood estimate (MLE) of the prior variance
+# (sigma0) for the basic multivariate regression model.
+fit <- bayes_mvr_ridge_fit(x,Y,V,S0$k1,numiter = 5)
+plot(1:5,max(fit$logbf) - fit$logbf + 1e-8,type = "l",log = "y",
+     col = "dodgerblue",lwd = 2,xlab = "iteration",
+     ylab = "distance to best logBF")
+                                        
+# FIT MODEL WITH MIXTURE PRIOR
+# ----------------------------
+# Compute the maximum-likelihood estimate (MLE) of the prior variance
+# (sigma0) for the multivariate regression model with a
+# mixture-of-normals prior on the regression coefficients.
+# TO DO.
