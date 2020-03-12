@@ -66,5 +66,3 @@ plot(1:8,max(fit2$logbf) - fit2$logbf + 1e-8,type = "l",log = "y",
      col = "magenta",lwd = 2,xlab = "iteration",
      ylab = "distance to best logBF")
 
-fit2 <- bayes_mvr_mix_fit(x,Y[,1],V[1],w0,lapply(S0,function (x) x[1,1]),
-                          numiter = 8)
