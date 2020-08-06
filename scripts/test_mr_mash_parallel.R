@@ -1,21 +1,20 @@
-# Here we check the performance and accuracy of mr_mash_update_rcpp.
+# TO DO: Explain here what this script does, and how to use it.
 suppressMessages(library(MBSP))
-library(mvtnorm)
 library(Rcpp)
 source("../code/misc.R")
 source("../code/bayes_mvr.R")
 source("../code/mr_mash_simple.R")
 sourceCpp("../code/mr_mash.cpp",verbose = TRUE)
+# sourceCpp("../code/mr_mash_parallel.cpp",verbose = TRUE)
 
 # SCRIPT PARAMETERS
 # -----------------
 # Number of samples (n) and number of predictors (p).
-n <- 500
-p <- 2000
+n <- 200
+p <- 250
 
 # Residual covariance matrix.
-V <- rbind(c(1.0,0.2),
-           c(0.2,0.4))
+V <- diag(100)
 r <- nrow(V)
 
 # True effects used to simulate the data.
@@ -25,18 +24,16 @@ B <- rbind(c(-2.0, -1.5),
 
 # Covariances in the mixture-of-normals prior on the regression
 # coefficients.
-S0 <- list(k1 = rbind(c(3,0),
-                      c(0,3)),
-           k2 = rbind(c(4,2),
-                      c(2,4)),
-           k3 = rbind(c(6,3.5),
-                      c(3.5,4)),
-           k4 = rbind(c(5,0),
-                      c(0,0)))
-
+k  <- 40
+t  <- seq(0,1,length.out = k)
+S0 <- vector("list",k)
+names(S0) <- paste0("k",1:k)
+for (i in 1:k)
+  S0[[i]] <- t[i] + (1-t[i])*diag(r)
+    
 # The mixture weights in the mixture-of-normals prior on the
 # regression coefficients.
-w0 <- c(0.1,0.6,0.2,0.1)
+w0 <- rep(1/k,k)
 k  <- length(w0)
 
 # SIMULATE DATA
@@ -55,9 +52,7 @@ Y <- scale(Y,scale = FALSE)
 # -----------------
 # Run 20 co-ordinate ascent updates.
 B0 <- matrix(0,p,r)
-print(system.time(fit1 <- mr_mash_simple(X,Y,V,S0,w0,B0,20,version = "R")))
+print(system.time(fit1 <- mr_mash_simple(X,Y,V,S0,w0,B0,20,version = "Rcpp")))
 
-# Redo the computations using the (faster) C++ implementation.
-print(system.time(fit2 <- mr_mash_simple(X,Y,V,S0,w0,B0,20,version = "Rcpp")))
-print(range(fit1$B - fit2$B))
-
+# Redo the computations using the (faster) multithreaded C++ implementation.
+# TO DO.
