@@ -3,6 +3,7 @@
 #define ARMA_DONT_PRINT_ERRORS
 
 #include <RcppArmadillo.h>
+#include <RcppParallel.h>
 
 using namespace Rcpp;
 using namespace arma;
@@ -14,7 +15,8 @@ void softmax (vec& x);
 double ldmvnorm (const vec& x, const mat& S);
 
 void mr_mash_update (const mat& X, const mat& Y, const mat& V,
-		     const vec& w0, const cube& S0, mat& B);
+		     const vec& w0, const cube& S0, mat& B,
+		     bool parallel);
 
 double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
 			const mat& S0, vec& bhat, mat& S, vec& mu1,
@@ -22,7 +24,42 @@ double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
 
 double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
 		      const vec& w0, const cube& S0, vec& mu1, mat& S1,
-		      vec& w1);
+		      vec& w1, bool parallel);
+
+// CLASS DEFINITIONS
+// -----------------
+// TO DO: Explain here what this class does.
+struct bayes_mvr_mix_worker : public RcppParallel::Worker {
+  const vec&  x;
+  const mat&  Y;
+  const mat&  V;
+  const cube& S0;
+  vec&        logbfmix;
+  mat&        mu1mix;
+  cube&       S1mix;
+  
+  // This is used to create a bayes_mvr_mix_worker object.
+  bayes_mvr_mix_worker (const vec& x, const mat& Y, const mat& V,
+			const cube& S0, vec& logbfmix, mat& mu1mix,
+			cube& S1mix) :
+    x(x), Y(Y), V(V), S0(S0), logbfmix(logbfmix), mu1mix(mu1mix),
+    S1mix(S1mix) { };
+
+  // This function performs the basic Bayesian multivariate regression
+  // calculations for a given range of prior mixture components.
+  void operator() (std::size_t begin, std::size_t end) {
+    unsigned int r = Y.n_cols;
+    vec b(r);
+    vec mu1(r);
+    mat S(r,r);
+    mat S1(r,r);
+    for (unsigned int i = begin; i < end; i++) {
+      logbfmix(i)    = bayes_mvr_ridge(x,Y,V,S0.slice(i),b,S,mu1,S1);
+      mu1mix.col(i)  = mu1;
+      S1mix.slice(i) = S1;
+    }
+  }
+};
 
 // FUNCTION DEFINITIONS
 // --------------------
@@ -37,9 +74,10 @@ double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
 // [[Rcpp::export]]
 arma::mat mr_mash_update_rcpp (const arma::mat& X, const arma::mat& Y,
 			       const arma::mat& B0, const arma::mat& V,
-			       const arma::vec& w0, const arma::cube& S0) {
+			       const arma::vec& w0, const arma::cube& S0,
+			       bool parallel) {
   mat B = B0;
-  mr_mash_update(X,Y,V,w0,S0,B);
+  mr_mash_update(X,Y,V,w0,S0,B,parallel);
   return B;
 }
 
@@ -80,6 +118,7 @@ List bayes_mvr_ridge_rcpp (const arma::vec& x, const arma::mat& Y,
 //	       
 // [[Rcpp::plugins("cpp11")]]
 // [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::depends(RcppParallel)]]
 // [[Rcpp::export]]
 List bayes_mvr_mix_rcpp (const arma::vec& x, const arma::mat& Y,
 			 const arma::mat& V, const arma::vec& w0,
@@ -89,7 +128,7 @@ List bayes_mvr_mix_rcpp (const arma::vec& x, const arma::mat& Y,
   vec mu1(r);
   mat S1(r,r);
   vec w1(k);
-  double logbf = bayes_mvr_mix(x,Y,V,w0,S0,mu1,S1,w1);
+  double logbf = bayes_mvr_mix(x,Y,V,w0,S0,mu1,S1,w1,false);
   return List::create(Named("mu1")   = mu1,
                       Named("S1")    = S1,
 		      Named("w1")    = w1,
@@ -99,7 +138,8 @@ List bayes_mvr_mix_rcpp (const arma::vec& x, const arma::mat& Y,
 // Compare this to the R function mr_mash_update_simple. Use
 // mr_mash_update_rcpp to call this function from R.
 void mr_mash_update (const mat& X, const mat& Y, const mat& V,
-		     const vec& w0, const cube& S0, mat& B) {
+		     const vec& w0, const cube& S0, mat& B,
+		     bool parallel) {
   unsigned int n = X.n_rows;
   unsigned int p = X.n_cols;
   unsigned int r = Y.n_cols;
@@ -122,7 +162,7 @@ void mr_mash_update (const mat& X, const mat& Y, const mat& V,
 
     // Update the posterior of the regression coefficients for the ith
     // predictor.
-    bayes_mvr_mix(x,R,V,w0,S0,b,S1,w1);
+    bayes_mvr_mix(x,R,V,w0,S0,b,S1,w1,parallel);
     B.row(i) = trans(b);
     
     // Update the expected residuals.
@@ -155,7 +195,7 @@ double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
 // Compare this to the R function bayes_mvr_mix_simple.
 double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
 		      const vec& w0, const cube& S0, vec& mu1, mat& S1,
-		      vec& w1) {
+		      vec& w1, bool parallel) {
   unsigned int k = w0.n_elem;
   unsigned int r = Y.n_cols;
   vec  b(r);
@@ -163,12 +203,17 @@ double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
   vec  logbfmix(k);
   mat  mu1mix(r,k);
   cube S1mix(r,r,k);
-  
+
   // Compute the quantities separately for each mixture component.
-  for (unsigned int i = 0; i < k; i++) {
-    logbfmix(i)    = bayes_mvr_ridge(x,Y,V,S0.slice(i),b,S,mu1,S1);
-    mu1mix.col(i)  = mu1;
-    S1mix.slice(i) = S1;
+  if (parallel) {
+    bayes_mvr_mix_worker worker(x,Y,V,S0,logbfmix,mu1mix,S1mix);
+    parallelFor(0,k,worker);
+  } else {
+    for (unsigned int i = 0; i < k; i++) {
+      logbfmix(i)    = bayes_mvr_ridge(x,Y,V,S0.slice(i),b,S,mu1,S1);
+      mu1mix.col(i)  = mu1;
+      S1mix.slice(i) = S1;
+    }
   }
 
   // Compute the posterior assignment probabilities for the latent

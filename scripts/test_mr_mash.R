@@ -2,6 +2,7 @@
 suppressMessages(library(MBSP))
 library(mvtnorm)
 library(Rcpp)
+library(RcppParallel)
 source("../code/misc.R")
 source("../code/bayes_mvr.R")
 source("../code/mr_mash_simple.R")
@@ -60,4 +61,13 @@ print(system.time(fit1 <- mr_mash_simple(X,Y,V,S0,w0,B0,20,version = "R")))
 # Redo the computations using the (faster) C++ implementation.
 print(system.time(fit2 <- mr_mash_simple(X,Y,V,S0,w0,B0,20,version = "Rcpp")))
 print(range(fit1$B - fit2$B))
+
+# Redo the computations using the multithreaded C++ implementation.
+# Note that we do not expect any speedup with the multithreading
+# because the computation that is parallelized is already very fast in
+# this case.
+setThreadOptions(numThreads = 4)
+print(system.time(fit3 <- mr_mash_simple(X,Y,V,S0,w0,B0,20,
+                                         version = "RcppParallel")))
+print(range(fit1$B - fit3$B))
 
