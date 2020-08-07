@@ -54,7 +54,8 @@ Y <- scale(Y,scale = FALSE)
 B0 <- matrix(0,p,r)
 print(system.time(fit1 <- mr_mash_simple(X,Y,V,S0,w0,B0,20,version = "Rcpp")))
 
-# Redo the computations using the (faster) multithreaded C++ implementation.
+# Redo the computations using the multithreaded C++ implementation. We
+# expect about a 4x speedup with 4 threads.
 setThreadOptions(numThreads = 4)
 print(system.time(fit2 <- mr_mash_simple(X,Y,V,S0,w0,B0,20,
                                          version = "RcppParallel")))
