@@ -55,7 +55,8 @@ B0 <- matrix(0,p,r)
 print(system.time(fit1 <- mr_mash_simple(X,Y,V,S0,w0,B0,20,version = "Rcpp")))
 
 # Redo the computations using the multithreaded C++ implementation. We
-# expect about a 4x speedup with 4 threads.
-setThreadOptions(numThreads = 4)
+# expect about a 4x speedup with 8 threads.
+setThreadOptions(numThreads = 8)
 print(system.time(fit2 <- mr_mash_simple(X,Y,V,S0,w0,B0,20,
                                          version = "RcppParallel")))
+print(range(fit1$B - fit2$B))
