@@ -4,6 +4,8 @@
 
 #include <RcppArmadillo.h>
 #include <RcppParallel.h>
+#include <omp.h>
+#include <string>
 
 using namespace Rcpp;
 using namespace arma;
@@ -16,7 +18,7 @@ double ldmvnorm (const vec& x, const mat& S);
 
 void mr_mash_update (const mat& X, const mat& Y, const mat& V,
 		     const vec& w0, const cube& S0, mat& B,
-		     bool parallel);
+		     std::string parallell);
 
 double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
 			const mat& S0, vec& bhat, mat& S, vec& mu1,
@@ -24,7 +26,7 @@ double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
 
 double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
 		      const vec& w0, const cube& S0, vec& mu1, mat& S1,
-		      vec& w1, bool parallel);
+		      vec& w1, std::string parallell);
 
 // CLASS DEFINITIONS
 // -----------------
@@ -75,9 +77,9 @@ struct bayes_mvr_mix_worker : public RcppParallel::Worker {
 arma::mat mr_mash_update_rcpp (const arma::mat& X, const arma::mat& Y,
 			       const arma::mat& B0, const arma::mat& V,
 			       const arma::vec& w0, const arma::cube& S0,
-			       bool parallel) {
+			       std::string parallell) {
   mat B = B0;
-  mr_mash_update(X,Y,V,w0,S0,B,parallel);
+  mr_mash_update(X,Y,V,w0,S0,B,parallell);
   return B;
 }
 
@@ -128,7 +130,7 @@ List bayes_mvr_mix_rcpp (const arma::vec& x, const arma::mat& Y,
   vec mu1(r);
   mat S1(r,r);
   vec w1(k);
-  double logbf = bayes_mvr_mix(x,Y,V,w0,S0,mu1,S1,w1,false);
+  double logbf = bayes_mvr_mix(x,Y,V,w0,S0,mu1,S1,w1,"no");
   return List::create(Named("mu1")   = mu1,
                       Named("S1")    = S1,
 		      Named("w1")    = w1,
@@ -139,7 +141,7 @@ List bayes_mvr_mix_rcpp (const arma::vec& x, const arma::mat& Y,
 // mr_mash_update_rcpp to call this function from R.
 void mr_mash_update (const mat& X, const mat& Y, const mat& V,
 		     const vec& w0, const cube& S0, mat& B,
-		     bool parallel) {
+		     std::string parallell) {
   unsigned int n = X.n_rows;
   unsigned int p = X.n_cols;
   unsigned int r = Y.n_cols;
@@ -162,7 +164,7 @@ void mr_mash_update (const mat& X, const mat& Y, const mat& V,
 
     // Update the posterior of the regression coefficients for the ith
     // predictor.
-    bayes_mvr_mix(x,R,V,w0,S0,b,S1,w1,parallel);
+    bayes_mvr_mix(x,R,V,w0,S0,b,S1,w1,parallell);
     B.row(i) = trans(b);
     
     // Update the expected residuals.
@@ -195,7 +197,7 @@ double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
 // Compare this to the R function bayes_mvr_mix_simple.
 double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
 		      const vec& w0, const cube& S0, vec& mu1, mat& S1,
-		      vec& w1, bool parallel) {
+		      vec& w1, std::string parallell) {
   unsigned int k = w0.n_elem;
   unsigned int r = Y.n_cols;
   vec  b(r);
@@ -205,10 +207,17 @@ double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
   cube S1mix(r,r,k);
 
   // Compute the quantities separately for each mixture component.
-  if (parallel) {
+  if (parallell == "TBB") {
     bayes_mvr_mix_worker worker(x,Y,V,S0,logbfmix,mu1mix,S1mix);
     parallelFor(0,k,worker);
-  } else {
+  } else if (parallell == "OpenMP"){
+    #pragma omp parallel for schedule(static) shared(k, x, Y, V, S0, b, S, logbfmix, mu1mix, S1mix) private(mu1, S1)
+    for (unsigned int i = 0; i < k; i++) {
+      logbfmix(i)    = bayes_mvr_ridge(x,Y,V,S0.slice(i),b,S,mu1,S1);
+      mu1mix.col(i)  = mu1;
+      S1mix.slice(i) = S1;
+    }
+  } else if (parallell == "no"){
     for (unsigned int i = 0; i < k; i++) {
       logbfmix(i)    = bayes_mvr_ridge(x,Y,V,S0.slice(i),b,S,mu1,S1);
       mu1mix.col(i)  = mu1;
