@@ -25,7 +25,7 @@ double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
 			mat& S1);
 
 double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
-		      const vec& w0, const cube& S0, vec& mu1, mat& S1,
+		      const vec& w0, const cube& S0, vec& mu1out, mat& S1out,
 		      vec& w1, std::string parallell);
 
 // CLASS DEFINITIONS
@@ -196,12 +196,14 @@ double bayes_mvr_ridge (const vec& x, const mat& Y, const mat& V,
 
 // Compare this to the R function bayes_mvr_mix_simple.
 double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
-		      const vec& w0, const cube& S0, vec& mu1, mat& S1,
+		      const vec& w0, const cube& S0, vec& mu1out, mat& S1out,
 		      vec& w1, std::string parallell) {
   unsigned int k = w0.n_elem;
   unsigned int r = Y.n_cols;
   vec  b(r);
+  vec  mu1(r);
   mat  S(r,r);
+  mat  S1(r,r);
   vec  logbfmix(k);
   mat  mu1mix(r,k);
   cube S1mix(r,r,k);
@@ -241,6 +243,8 @@ double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
     S1  += w1(i) * (S1mix.slice(i) + b * trans(b));
   }
   S1 -= mu1 * trans(mu1);
+  mu1out = mu1;
+  S1out  = S1;
   
   // Compute the log-Bayes factor as a linear combination of the
   // individual Bayes factors for each mixture component.
