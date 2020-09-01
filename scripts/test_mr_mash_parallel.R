@@ -54,9 +54,16 @@ Y <- scale(Y,scale = FALSE)
 B0 <- matrix(0,p,r)
 print(system.time(fit1 <- mr_mash_simple(X,Y,V,S0,w0,B0,20,version = "Rcpp")))
 
-# Redo the computations using the multithreaded C++ implementation. We
+# Redo the computations using the multithreaded C++ implementation using TBB. We
 # expect about a 4x speedup with 8 threads.
 setThreadOptions(numThreads = 8)
 print(system.time(fit2 <- mr_mash_simple(X,Y,V,S0,w0,B0,20,
                                          version = "RcppParallel")))
+
+# Redo the computations using the multithreaded C++ implementation using OpenMP. We
+# expect about a 4x speedup with 8 threads (OMP_NUM_THREADS=8 before starting R).
+print(system.time(fit3 <- mr_mash_simple(X,Y,V,S0,w0,B0,20,
+                                         version = "RcppOpenMP")))
+
 print(range(fit1$B - fit2$B))
+print(range(fit1$B - fit3$B))

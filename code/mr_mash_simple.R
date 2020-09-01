@@ -9,7 +9,7 @@
 # clarity. Very little effort has been devoted to making the
 # implementation efficient, or the code concise.
 mr_mash_simple <- function (X, Y, V, S0, w0, B, numiter = 100,
-                            version = c("R","Rcpp","RcppParallel")) {
+                            version = c("R","Rcpp","RcppParallel", "RcppOpenMP")) {
   version <- match.arg(version)
   Y       <- as.matrix(Y)
   r       <- ncol(Y)
@@ -30,11 +30,15 @@ mr_mash_simple <- function (X, Y, V, S0, w0, B, numiter = 100,
     else if (version == "Rcpp")
       B <- drop(mr_mash_update_rcpp(X,Y,as.matrix(B),as.matrix(V),w0,
                                     array(simplify2array(S0),c(r,r,k)),
-                                    parallel = FALSE))
+                                    parallell = 'no'))
     else if (version == "RcppParallel")
       B <- drop(mr_mash_update_rcpp(X,Y,as.matrix(B),as.matrix(V),w0,
                                     array(simplify2array(S0),c(r,r,k)),
-                                    parallel = TRUE))
+                                    parallell = 'TBB'))
+    else if (version == "RcppOpenMP")
+      B <- drop(mr_mash_update_rcpp(X,Y,as.matrix(B),as.matrix(V),w0,
+                                    array(simplify2array(S0),c(r,r,k)),
+                                    parallell = 'OpenMP'))
     
     # Store the largest change in the posterior means.
     maxd[i] <- abs(max(B - B0))
