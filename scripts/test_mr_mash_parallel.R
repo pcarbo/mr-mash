@@ -1,4 +1,3 @@
-# TO DO: Explain here what this script does, and how to use it.
 suppressMessages(library(MBSP))
 library(Rcpp)
 library(RcppParallel)
@@ -60,8 +59,9 @@ setThreadOptions(numThreads = 8)
 print(system.time(fit2 <- mr_mash_simple(X,Y,V,S0,w0,B0,20,
                                          version = "RcppParallel")))
 
-# Redo the computations using the multithreaded C++ implementation using OpenMP. We
-# expect about a 4x speedup with 8 threads (OMP_NUM_THREADS=8 before starting R).
+# Redo the computations using the multithreaded C++ implementation
+# using OpenMP. We expect about a 4x speedup with 8 threads
+# (set OMP_NUM_THREADS=8 before starting R).
 print(system.time(fit3 <- mr_mash_simple(X,Y,V,S0,w0,B0,20,
                                          version = "RcppOpenMP")))
 
