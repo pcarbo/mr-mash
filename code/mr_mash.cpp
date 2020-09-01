@@ -28,7 +28,6 @@ double bayes_mvr_mix (const vec& x, const mat& Y, const mat& V,
 
 // CLASS DEFINITIONS
 // -----------------
-// TO DO: Explain here what this class does.
 struct bayes_mvr_mix_worker : public RcppParallel::Worker {
   const vec&  x;
   const mat&  Y;
